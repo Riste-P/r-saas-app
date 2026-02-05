@@ -12,8 +12,8 @@ import {
 import Layout from "@/components/Layout";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
-import UsersPage from "@/pages/UsersPage";
-import TenantsPage from "@/pages/TenantsPage";
+import UsersPage from "@/pages/users/UsersPage";
+import TenantsPage from "@/pages/tenants/TenantsPage";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorBoundary from "@/components/ErrorBoundary";
 

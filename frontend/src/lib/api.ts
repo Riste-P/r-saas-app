@@ -55,6 +55,7 @@ api.interceptors.response.use(
           .then((res) => {
             const newAccessToken = res.data.access_token;
             accessToken = newAccessToken;
+            localStorage.setItem("access_token", newAccessToken);
             return newAccessToken;
           })
           .catch((refreshError) => {

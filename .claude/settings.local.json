@@ -19,7 +19,11 @@
       "Bash(python -m pytest:*)",
       "Bash(find:*)",
       "Bash(npx shadcn@latest add form:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(del \"c:\\\\Users\\\\HASELT-Riste.P\\\\source\\\\r-saas-app\\\\frontend\\\\src\\\\pages\\\\TenantsPage.tsx\")",
+      "Bash(del \"c:\\\\Users\\\\HASELT-Riste.P\\\\source\\\\r-saas-app\\\\frontend\\\\src\\\\pages\\\\UsersPage.tsx\")",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build)"
     ]
   }
 }
