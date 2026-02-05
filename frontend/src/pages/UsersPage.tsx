@@ -6,6 +6,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Table,
   TableBody,
@@ -17,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -50,10 +51,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useAuthStore } from "@/stores/auth";
 import { useUsersQuery, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useUsers";
 import { useTenantsQuery } from "@/hooks/useTenants";
 import type { UserListItem } from "@/types";
+import {
+  createUserSchema,
+  createUserSuperadminSchema,
+  editUserSchema,
+  type CreateUserFormValues,
+  type EditUserFormValues,
+} from "@/lib/schemas";
 
 const columnHelper = createColumnHelper<UserListItem>();
 
@@ -64,25 +80,24 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserListItem | null>(null);
-  const [editRoleId, setEditRoleId] = useState("3");
-  const [editActive, setEditActive] = useState(true);
-  const [newEmail, setNewEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newRoleId, setNewRoleId] = useState("3");
-  const [newTenantId, setNewTenantId] = useState("");
-  const [tenantError, setTenantError] = useState("");
 
   const { data: users = [], isLoading } = useUsersQuery();
   const { data: tenants = [] } = useTenantsQuery(isSuperadmin);
 
+  const createForm = useForm<CreateUserFormValues>({
+    resolver: zodResolver(isSuperadmin ? createUserSuperadminSchema : createUserSchema),
+    defaultValues: { email: "", password: "", role_id: "3", tenant_id: "" },
+  });
+
+  const editForm = useForm<EditUserFormValues>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: { role_id: "3", is_active: true },
+  });
+
   const createMutation = useCreateUser({
     onSuccess: () => {
       setCreateOpen(false);
-      setNewEmail("");
-      setNewPassword("");
-      setNewRoleId("3");
-      setNewTenantId("");
-      setTenantError("");
+      createForm.reset();
     },
   });
 
@@ -96,8 +111,28 @@ export default function UsersPage() {
 
   function openEdit(user: UserListItem) {
     setEditUser(user);
-    setEditRoleId(roleNameToId(user.role));
-    setEditActive(user.is_active);
+    editForm.reset({
+      role_id: roleNameToId(user.role),
+      is_active: user.is_active,
+    });
+  }
+
+  function onCreateSubmit(values: CreateUserFormValues) {
+    createMutation.mutate({
+      email: values.email,
+      password: values.password,
+      role_id: Number(values.role_id),
+      ...(isSuperadmin && values.tenant_id ? { tenant_id: values.tenant_id } : {}),
+    });
+  }
+
+  function onEditSubmit(values: EditUserFormValues) {
+    if (!editUser) return;
+    updateMutation.mutate({
+      id: editUser.id,
+      role_id: Number(values.role_id),
+      is_active: values.is_active,
+    });
   }
 
   const columns = [
@@ -237,96 +272,105 @@ export default function UsersPage() {
         open={createOpen}
         onOpenChange={(open) => {
           setCreateOpen(open);
-          if (!open) setTenantError("");
+          if (!open) createForm.reset();
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create User</DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (isSuperadmin && !newTenantId) {
-                setTenantError("Please select a tenant");
-                return;
-              }
-              setTenantError("");
-              createMutation.mutate({
-                email: newEmail,
-                password: newPassword,
-                role_id: Number(newRoleId),
-                ...(isSuperadmin && newTenantId ? { tenant_id: newTenantId } : {}),
-              });
-            }}
-            className="space-y-4"
-          >
-            {isSuperadmin && (
-              <div className="space-y-2">
-                <Label>Tenant</Label>
-                <Select
-                  value={newTenantId}
-                  onValueChange={(v) => {
-                    setNewTenantId(v);
-                    setTenantError("");
-                  }}
-                >
-                  <SelectTrigger
-                    className={tenantError ? "border-destructive" : ""}
-                  >
-                    <SelectValue placeholder="Select a tenant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tenants.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {tenantError && (
-                  <p className="text-sm text-destructive">{tenantError}</p>
+          <Form {...createForm}>
+            <form
+              onSubmit={createForm.handleSubmit(onCreateSubmit)}
+              noValidate
+              className="space-y-4"
+            >
+              {isSuperadmin && (
+                <FormField
+                  control={createForm.control}
+                  name="tenant_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tenant</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a tenant" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {tenants.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              <FormField
+                control={createForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="new-email">Email</Label>
-              <Input
-                id="new-email"
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                required
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-password">Password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
+              <FormField
+                control={createForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select value={newRoleId} onValueChange={setNewRoleId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2">admin</SelectItem>
-                  <SelectItem value="3">user</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? "Creating..." : "Create"}
-              </Button>
-            </DialogFooter>
-          </form>
+              <FormField
+                control={createForm.control}
+                name="role_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="2">admin</SelectItem>
+                        <SelectItem value="3">user</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? "Creating..." : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
@@ -342,57 +386,71 @@ export default function UsersPage() {
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>{editUser?.email}</DialogDescription>
           </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!editUser) return;
-              updateMutation.mutate({
-                id: editUser.id,
-                role_id: Number(editRoleId),
-                is_active: editActive,
-              });
-            }}
-            className="space-y-4"
-          >
-            {isSuperadmin && editUser && (
-              <div className="space-y-2">
-                <Label>Tenant</Label>
-                <Input value={editUser.tenant_name} disabled />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select value={editRoleId} onValueChange={setEditRoleId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2">admin</SelectItem>
-                  <SelectItem value="3">user</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit-active">Active</Label>
-              <Switch
-                id="edit-active"
-                checked={editActive}
-                onCheckedChange={setEditActive}
+          <Form {...editForm}>
+            <form
+              onSubmit={editForm.handleSubmit(onEditSubmit)}
+              noValidate
+              className="space-y-4"
+            >
+              {isSuperadmin && editUser && (
+                <div className="space-y-2">
+                  <FormLabel>Tenant</FormLabel>
+                  <Input value={editUser.tenant_name} disabled />
+                </div>
+              )}
+              <FormField
+                control={editForm.control}
+                name="role_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="2">admin</SelectItem>
+                        <SelectItem value="3">user</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditUser(null)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "Saving..." : "Save"}
-              </Button>
-            </DialogFooter>
-          </form>
+              <FormField
+                control={editForm.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <FormLabel>Active</FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditUser(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 

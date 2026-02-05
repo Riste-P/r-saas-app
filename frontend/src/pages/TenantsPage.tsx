@@ -6,6 +6,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Table,
   TableBody,
@@ -17,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
@@ -44,6 +45,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
   useTenantsQuery,
   useCreateTenant,
   useUpdateTenant,
@@ -51,6 +60,21 @@ import {
   useCreateTenantAdmin,
 } from "@/hooks/useTenants";
 import type { Tenant } from "@/types";
+import {
+  createTenantSchema,
+  editTenantSchema,
+  createTenantAdminSchema,
+  type CreateTenantFormValues,
+  type EditTenantFormValues,
+  type CreateTenantAdminFormValues,
+} from "@/lib/schemas";
+
+function deriveSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
 
 const columnHelper = createColumnHelper<Tenant>();
 
@@ -58,21 +82,29 @@ export default function TenantsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTenant, setEditTenant] = useState<Tenant | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Tenant | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editActive, setEditActive] = useState(true);
   const [adminOpen, setAdminOpen] = useState<string | null>(null);
-  const [newName, setNewName] = useState("");
-  const [newSlug, setNewSlug] = useState("");
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
 
   const { data: tenants = [], isLoading } = useTenantsQuery();
+
+  const createForm = useForm<CreateTenantFormValues>({
+    resolver: zodResolver(createTenantSchema),
+    defaultValues: { name: "", slug: "" },
+  });
+
+  const editForm = useForm<EditTenantFormValues>({
+    resolver: zodResolver(editTenantSchema),
+    defaultValues: { name: "", is_active: true },
+  });
+
+  const adminForm = useForm<CreateTenantAdminFormValues>({
+    resolver: zodResolver(createTenantAdminSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
   const createMutation = useCreateTenant({
     onSuccess: () => {
       setCreateOpen(false);
-      setNewName("");
-      setNewSlug("");
+      createForm.reset();
     },
   });
 
@@ -87,15 +119,39 @@ export default function TenantsPage() {
   const createAdminMutation = useCreateTenantAdmin({
     onSuccess: () => {
       setAdminOpen(null);
-      setAdminEmail("");
-      setAdminPassword("");
+      adminForm.reset();
     },
   });
 
   function openEdit(tenant: Tenant) {
     setEditTenant(tenant);
-    setEditName(tenant.name);
-    setEditActive(tenant.is_active);
+    editForm.reset({
+      name: tenant.name,
+      is_active: tenant.is_active,
+    });
+  }
+
+  function onCreateSubmit(values: CreateTenantFormValues) {
+    createMutation.mutate({ name: values.name, slug: values.slug });
+  }
+
+  function onEditSubmit(values: EditTenantFormValues) {
+    if (!editTenant) return;
+    updateMutation.mutate({
+      id: editTenant.id,
+      name: values.name,
+      is_active: values.is_active,
+    });
+  }
+
+  function onAdminSubmit(values: CreateTenantAdminFormValues) {
+    if (!adminOpen) return;
+    createAdminMutation.mutate({
+      email: values.email,
+      password: values.password,
+      role_id: 2,
+      tenant_id: adminOpen,
+    });
   }
 
   const columns = [
@@ -220,50 +276,64 @@ export default function TenantsPage() {
       </div>
 
       {/* Create Tenant Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) createForm.reset();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Tenant</DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              createMutation.mutate({ name: newName, slug: newSlug });
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-2">
-              <Label htmlFor="tenant-name">Name</Label>
-              <Input
-                id="tenant-name"
-                value={newName}
-                onChange={(e) => {
-                  setNewName(e.target.value);
-                  setNewSlug(
-                    e.target.value
-                      .toLowerCase()
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/(^-|-$)/g, "")
-                  );
-                }}
-                required
+          <Form {...createForm}>
+            <form
+              onSubmit={createForm.handleSubmit(onCreateSubmit)}
+              noValidate
+              className="space-y-4"
+            >
+              <FormField
+                control={createForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          createForm.setValue("slug", deriveSlug(e.target.value), {
+                            shouldValidate: createForm.formState.isSubmitted,
+                          });
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tenant-slug">Slug</Label>
-              <Input
-                id="tenant-slug"
-                value={newSlug}
-                onChange={(e) => setNewSlug(e.target.value)}
-                required
+              <FormField
+                control={createForm.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Slug</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? "Creating..." : "Create"}
-              </Button>
-            </DialogFooter>
-          </form>
+              <DialogFooter>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? "Creating..." : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
@@ -279,48 +349,54 @@ export default function TenantsPage() {
             <DialogTitle>Edit Tenant</DialogTitle>
             <DialogDescription>{editTenant?.slug}</DialogDescription>
           </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!editTenant) return;
-              updateMutation.mutate({
-                id: editTenant.id,
-                name: editName,
-                is_active: editActive,
-              });
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Name</Label>
-              <Input
-                id="edit-name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                required
+          <Form {...editForm}>
+            <form
+              onSubmit={editForm.handleSubmit(onEditSubmit)}
+              noValidate
+              className="space-y-4"
+            >
+              <FormField
+                control={editForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit-tenant-active">Active</Label>
-              <Switch
-                id="edit-tenant-active"
-                checked={editActive}
-                onCheckedChange={setEditActive}
+              <FormField
+                control={editForm.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <FormLabel>Active</FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditTenant(null)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "Saving..." : "Save"}
-              </Button>
-            </DialogFooter>
-          </form>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditTenant(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
@@ -360,52 +436,55 @@ export default function TenantsPage() {
       <Dialog
         open={adminOpen !== null}
         onOpenChange={(open) => {
-          if (!open) setAdminOpen(null);
+          if (!open) {
+            setAdminOpen(null);
+            adminForm.reset();
+          }
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Admin User</DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!adminOpen) return;
-              createAdminMutation.mutate({
-                email: adminEmail,
-                password: adminPassword,
-                role_id: 2,
-                tenant_id: adminOpen,
-              });
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-2">
-              <Label htmlFor="admin-email">Email</Label>
-              <Input
-                id="admin-email"
-                type="email"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
-                required
+          <Form {...adminForm}>
+            <form
+              onSubmit={adminForm.handleSubmit(onAdminSubmit)}
+              noValidate
+              className="space-y-4"
+            >
+              <FormField
+                control={adminForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="admin-password">Password</Label>
-              <Input
-                id="admin-password"
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                required
+              <FormField
+                control={adminForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={createAdminMutation.isPending}>
-                {createAdminMutation.isPending ? "Creating..." : "Create Admin"}
-              </Button>
-            </DialogFooter>
-          </form>
+              <DialogFooter>
+                <Button type="submit" disabled={createAdminMutation.isPending}>
+                  {createAdminMutation.isPending ? "Creating..." : "Create Admin"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
