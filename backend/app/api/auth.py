@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.database import get_db
 from app.core.dependencies import get_current_user
-from app.models.user import User
-from app.schemas.auth import (
+from app.database.models.user import User
+from app.dto.auth import (
     AccessTokenResponse,
     LoginRequest,
-    RefreshRequest,
+    RefreshTokenRequest,
     TokenResponse,
-    UserResponse,
 )
+from app.dto.user import UserResponse
 from app.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -23,18 +23,11 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)
-async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+async def refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     access = await auth_service.refresh_access_token(body.refresh_token, db)
     return AccessTokenResponse(access_token=access)
 
 
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)):
-    return UserResponse(
-        id=user.id,
-        email=user.email,
-        is_active=user.is_active,
-        tenant_id=user.tenant_id,
-        tenant_name=user.tenant.name,
-        role=user.role.name,
-    )
+    return UserResponse.from_entity(user)

@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import SYSTEM_TENANT_SLUG
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
-from app.models.tenant import Tenant
-from app.schemas.tenant import TenantCreate, TenantUpdate
+from app.database.models.tenant import Tenant
+from app.dto.tenant import CreateTenantRequest, UpdateTenantRequest
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ async def list_tenants(
     return list(result.scalars().all()), total
 
 
-async def create_tenant(body: TenantCreate, db: AsyncSession) -> Tenant:
+async def create_tenant(body: CreateTenantRequest, db: AsyncSession) -> Tenant:
     existing = await db.execute(
         select(Tenant).where(Tenant.slug == body.slug, Tenant.deleted_at.is_(None))
     )
@@ -44,7 +44,7 @@ async def create_tenant(body: TenantCreate, db: AsyncSession) -> Tenant:
 
 
 async def update_tenant(
-    tenant_id: UUID, body: TenantUpdate, db: AsyncSession
+    tenant_id: UUID, body: UpdateTenantRequest, db: AsyncSession
 ) -> Tenant:
     result = await db.execute(
         select(Tenant).where(Tenant.id == tenant_id, Tenant.deleted_at.is_(None))

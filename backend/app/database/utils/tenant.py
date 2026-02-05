@@ -1,7 +1,7 @@
 from sqlalchemy import Select
 
 from app.core.dependencies import is_superadmin
-from app.models.user import User
+from app.database.models.user import User
 
 
 def tenant_filter(query: Select, user: User, tenant_id_column) -> Select:

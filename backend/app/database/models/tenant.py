@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+from app.database.base import Base, SoftDeleteMixin, TimestampMixin
 
 
 class Tenant(Base, TimestampMixin, SoftDeleteMixin):
@@ -20,4 +20,4 @@ class Tenant(Base, TimestampMixin, SoftDeleteMixin):
     users: Mapped[list["User"]] = relationship(back_populates="tenant")
 
 
-from app.models.user import User  # noqa: E402
+from app.database.models.user import User  # noqa: E402

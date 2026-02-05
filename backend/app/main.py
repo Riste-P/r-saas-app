@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import auth, dashboard, tenants, users
 from app.core.config import settings
-from app.core.database import get_db
+from app.database import get_db
 from app.core.exceptions import AppError, app_error_handler, unhandled_error_handler
-from app.core.logging import setup_logging
+from app.utils.logging import setup_logging
 
 setup_logging()
 

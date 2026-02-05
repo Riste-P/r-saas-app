@@ -7,13 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ForbiddenError, UnauthorizedError
-from app.core.security import (
+from app.utils.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
     verify_password,
 )
-from app.models.user import User
+from app.database.models.user import User
 
 logger = logging.getLogger(__name__)
 

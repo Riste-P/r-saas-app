@@ -1,7 +1,7 @@
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base
+from app.database.base import Base
 
 
 class Role(Base):
@@ -13,4 +13,4 @@ class Role(Base):
     users: Mapped[list["User"]] = relationship(back_populates="role")
 
 
-from app.models.user import User  # noqa: E402
+from app.database.models.user import User  # noqa: E402

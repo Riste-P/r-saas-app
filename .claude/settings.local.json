@@ -15,7 +15,9 @@
       "Bash(set \"DATABASE_URL=sqlite+aiosqlite:///:memory:\")",
       "Bash(set \"JWT_SECRET=test-secret-key\")",
       "Bash(dir:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(find:*)"
     ]
   }
 }

@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+from app.database.base import Base, SoftDeleteMixin, TimestampMixin
 
 
 class User(Base, TimestampMixin, SoftDeleteMixin):
@@ -28,5 +28,5 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     role: Mapped["Role"] = relationship(back_populates="users")
 
 
-from app.models.tenant import Tenant  # noqa: E402
-from app.models.role import Role  # noqa: E402
+from app.database.models.tenant import Tenant  # noqa: E402
+from app.database.models.role import Role  # noqa: E402

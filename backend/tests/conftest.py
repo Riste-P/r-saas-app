@@ -1,3 +1,4 @@
+import os
 import uuid
 from collections.abc import AsyncGenerator
 
@@ -10,18 +11,22 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from app.core.database import get_db
-from app.core.security import hash_password
+from app.database import Base, get_db
+from app.utils.security import hash_password
 from app.main import app
-from app.models.base import Base
-from app.models.role import Role
-from app.models.tenant import Tenant
-from app.models.user import User
+from app.database.models.role import Role
+from app.database.models.tenant import Tenant
+from app.database.models.user import User
+
+_DB_HOST = os.getenv("TEST_DB_HOST", "localhost")
+_DB_PORT = os.getenv("TEST_DB_PORT", "5432")
+_DB_USER = os.getenv("TEST_DB_USER", "saas")
+_DB_PASS = os.getenv("TEST_DB_PASS", "saas_dev_password_2026")
 
 TEST_DATABASE_URL = (
-    "postgresql+asyncpg://saas:saas_dev_password_2026@localhost:5432/saas_test"
+    f"postgresql+asyncpg://{_DB_USER}:{_DB_PASS}@{_DB_HOST}:{_DB_PORT}/saas_test"
 )
-_ROOT_URL = "postgresql+asyncpg://saas:saas_dev_password_2026@localhost:5432/saas_db"
+_ROOT_URL = f"postgresql+asyncpg://{_DB_USER}:{_DB_PASS}@{_DB_HOST}:{_DB_PORT}/saas_db"
 
 
 @pytest_asyncio.fixture(autouse=True)

@@ -8,10 +8,10 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import is_superadmin
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
-from app.core.security import hash_password
-from app.core.tenant import tenant_filter
-from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate
+from app.utils.security import hash_password
+from app.database.utils.tenant import tenant_filter
+from app.database.models.user import User
+from app.dto.user import CreateUserRequest, UpdateUserRequest
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ async def list_users(
     return list(result.scalars().all()), total
 
 
-async def create_user(body: UserCreate, current_user: User, db: AsyncSession) -> User:
+async def create_user(body: CreateUserRequest, current_user: User, db: AsyncSession) -> User:
     existing = await db.execute(
         select(User).where(User.email == body.email, User.deleted_at.is_(None))
     )
@@ -58,7 +58,7 @@ async def create_user(body: UserCreate, current_user: User, db: AsyncSession) ->
 
 
 async def update_user(
-    user_id: UUID, body: UserUpdate, current_user: User, db: AsyncSession
+    user_id: UUID, body: UpdateUserRequest, current_user: User, db: AsyncSession
 ) -> User:
     query = (
         select(User)
