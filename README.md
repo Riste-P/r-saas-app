@@ -6,11 +6,13 @@ A full-stack multi-tenant SaaS application with role-based access control, built
 
 **Backend:** Python 3.14+ / FastAPI / SQLAlchemy (async) / Alembic / JWT Auth
 
-**Frontend:** React 19 / TypeScript / Vite / Tailwind CSS / Radix UI / Zustand / React Query
+**Frontend:** React 19 / TypeScript / Vite / Tailwind CSS / Radix UI / Zustand / React Query / React Hook Form / Zod
 
 **Database:** PostgreSQL 18
 
 **Infrastructure:** Docker / Docker Compose
+
+**Testing:** pytest / pytest-asyncio / httpx (Dockerized test runner)
 
 ## Features
 
@@ -20,29 +22,43 @@ A full-stack multi-tenant SaaS application with role-based access control, built
 - **User Management** -- CRUD operations scoped by tenant and role
 - **Tenant Management** -- Create and manage tenants (superadmin only)
 - **Dashboard** -- Role-aware dashboard view
-- **Soft Deletes** -- Deactivation instead of hard deletion
+- **Soft Deletes** -- Deactivation via `deleted_at` timestamp instead of hard deletion
+- **Form Validation** -- Client-side validation with Zod schemas and React Hook Form
+- **Reusable UI Components** -- Shared DataTable, ConfirmDeleteDialog, and form primitives
 
 ## Project Structure
 
 ```
 r-saas-app/
 ├── backend/
+│   ├── alembic.ini
 │   ├── app/
-│   │   ├── api/            # Route handlers (auth, users, tenants, dashboard)
-│   │   ├── core/           # Config, database, security, dependencies
-│   │   ├── models/         # SQLAlchemy ORM models
-│   │   ├── schemas/        # Pydantic request/response schemas
-│   │   └── services/       # Business logic layer
-│   ├── alembic/            # Database migrations
-│   └── tests/
+│   │   ├── api/                # Route handlers (auth, users, tenants, dashboard)
+│   │   ├── core/               # Config, dependencies, exceptions, pagination
+│   │   ├── database/
+│   │   │   ├── migrations/     # Alembic migrations (env.py, versions/)
+│   │   │   ├── models/         # SQLAlchemy ORM entities (user, tenant, role)
+│   │   │   ├── utils/          # Tenant isolation helpers
+│   │   │   ├── base.py         # DeclarativeBase + mixins (Timestamp, SoftDelete, Tenant)
+│   │   │   └── session.py      # Async engine + session factory
+│   │   ├── dto/                # Pydantic request/response DTOs (with from_entity mapping)
+│   │   ├── services/           # Business logic layer
+│   │   └── utils/              # Stateless helpers (JWT/bcrypt, logging)
+│   └── tests/                  # pytest async integration tests
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/          # Login, Dashboard, Users, Tenants
-│   │   ├── components/     # Layout, route guards, UI primitives
-│   │   ├── services/       # API service layer (axios)
-│   │   ├── stores/         # Zustand auth store
-│   │   ├── hooks/          # Custom React hooks
-│   │   └── types/          # TypeScript type definitions
+│   │   ├── components/         # Layout, route guards, DataTable, ConfirmDeleteDialog
+│   │   │   └── ui/             # Radix-based UI primitives (form, dialog, table, etc.)
+│   │   ├── hooks/              # React Query hooks (useUsers, useTenants, useDashboard)
+│   │   ├── lib/                # Axios client, Zod validation schemas, utilities
+│   │   ├── pages/
+│   │   │   ├── tenants/        # TenantsPage + Create/Edit/Delete dialogs, columns
+│   │   │   ├── users/          # UsersPage + Create/Edit/Delete dialogs, columns
+│   │   │   ├── DashboardPage.tsx
+│   │   │   └── LoginPage.tsx
+│   │   ├── services/           # API service layer (axios)
+│   │   ├── stores/             # Zustand auth store
+│   │   └── types/              # TypeScript type definitions
 ├── docker-compose.yml
 └── .env
 ```
@@ -97,6 +113,16 @@ r-saas-app/
    Password: changeme
    ```
 
+### Running Tests
+
+Tests run in a dedicated Docker container with its own test database:
+
+```bash
+docker-compose --profile test up test --build
+```
+
+This spins up the `db` service and runs `pytest` against a temporary test database.
+
 ### Local Development (without Docker)
 
 **Backend:**
@@ -124,20 +150,20 @@ npm run dev
 | GET    | `/api/auth/me`       | Get current user     |
 
 ### Users (admin / superadmin)
-| Method | Endpoint                    | Description     |
-|--------|-----------------------------|-----------------|
-| GET    | `/api/admin/users`          | List users      |
-| POST   | `/api/admin/users`          | Create user     |
-| PATCH  | `/api/admin/users/{id}`     | Update user     |
-| DELETE | `/api/admin/users/{id}`     | Deactivate user |
+| Method | Endpoint                    | Description          |
+|--------|-----------------------------|----------------------|
+| GET    | `/api/admin/users`          | List users           |
+| POST   | `/api/admin/users`          | Create user          |
+| PATCH  | `/api/admin/users/{id}`     | Update user          |
+| DELETE | `/api/admin/users/{id}`     | Soft-delete user     |
 
 ### Tenants (superadmin only)
-| Method | Endpoint                      | Description       |
-|--------|-------------------------------|-------------------|
-| GET    | `/api/admin/tenants`          | List tenants      |
-| POST   | `/api/admin/tenants`          | Create tenant     |
-| PATCH  | `/api/admin/tenants/{id}`     | Update tenant     |
-| DELETE | `/api/admin/tenants/{id}`     | Deactivate tenant |
+| Method | Endpoint                      | Description          |
+|--------|-------------------------------|----------------------|
+| GET    | `/api/admin/tenants`          | List tenants         |
+| POST   | `/api/admin/tenants`          | Create tenant        |
+| PATCH  | `/api/admin/tenants/{id}`     | Update tenant        |
+| DELETE | `/api/admin/tenants/{id}`     | Soft-delete tenant   |
 
 ### Dashboard
 | Method | Endpoint          | Description    |
