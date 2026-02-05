@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -18,8 +19,9 @@ logger = logging.getLogger(__name__)
 async def list_users(
     current_user: User, db: AsyncSession, *, offset: int = 0, limit: int = 50
 ) -> tuple[list[User], int]:
-    """Return (users, total_count) with pagination."""
+    """Return (users, total_count) with pagination. Excludes soft-deleted users."""
     base = select(User).options(selectinload(User.role), selectinload(User.tenant))
+    base = base.where(User.deleted_at.is_(None))
     base = tenant_filter(base, current_user, User.tenant_id)
 
     count_result = await db.execute(select(func.count()).select_from(base.subquery()))
@@ -31,7 +33,9 @@ async def list_users(
 
 
 async def create_user(body: UserCreate, current_user: User, db: AsyncSession) -> User:
-    existing = await db.execute(select(User).where(User.email == body.email))
+    existing = await db.execute(
+        select(User).where(User.email == body.email, User.deleted_at.is_(None))
+    )
     if existing.scalar_one_or_none():
         raise ConflictError("EMAIL_EXISTS", "Email already exists")
 
@@ -59,7 +63,7 @@ async def update_user(
     query = (
         select(User)
         .options(selectinload(User.role), selectinload(User.tenant))
-        .where(User.id == user_id)
+        .where(User.id == user_id, User.deleted_at.is_(None))
     )
     if not is_superadmin(current_user):
         query = query.where(User.tenant_id == current_user.tenant_id)
@@ -84,8 +88,13 @@ async def update_user(
     return target
 
 
-async def deactivate_user(user_id: UUID, current_user: User, db: AsyncSession) -> None:
-    query = select(User).options(selectinload(User.role)).where(User.id == user_id)
+async def delete_user(user_id: UUID, current_user: User, db: AsyncSession) -> None:
+    """Soft-delete a user by setting deleted_at timestamp."""
+    query = (
+        select(User)
+        .options(selectinload(User.role))
+        .where(User.id == user_id, User.deleted_at.is_(None))
+    )
     if not is_superadmin(current_user):
         query = query.where(User.tenant_id == current_user.tenant_id)
 
@@ -95,8 +104,9 @@ async def deactivate_user(user_id: UUID, current_user: User, db: AsyncSession) -
         raise NotFoundError("USER_NOT_FOUND", "User not found")
 
     if target.role.name == "superadmin":
-        raise ForbiddenError("SUPERADMIN_PROTECTED", "Cannot deactivate superadmin account")
+        raise ForbiddenError("SUPERADMIN_PROTECTED", "Cannot delete superadmin account")
 
+    target.deleted_at = datetime.now(timezone.utc)
     target.is_active = False
     await db.commit()
-    logger.info("User deactivated id=%s by=%s", user_id, current_user.id)
+    logger.info("User soft-deleted id=%s by=%s", user_id, current_user.id)

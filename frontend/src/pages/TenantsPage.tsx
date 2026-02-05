@@ -28,6 +28,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -37,6 +47,7 @@ import {
   useTenantsQuery,
   useCreateTenant,
   useUpdateTenant,
+  useDeleteTenant,
   useCreateTenantAdmin,
 } from "@/hooks/useTenants";
 import type { Tenant } from "@/types";
@@ -46,6 +57,7 @@ const columnHelper = createColumnHelper<Tenant>();
 export default function TenantsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTenant, setEditTenant] = useState<Tenant | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Tenant | null>(null);
   const [editName, setEditName] = useState("");
   const [editActive, setEditActive] = useState(true);
   const [adminOpen, setAdminOpen] = useState<string | null>(null);
@@ -66,6 +78,10 @@ export default function TenantsPage() {
 
   const updateMutation = useUpdateTenant({
     onSuccess: () => setEditTenant(null),
+  });
+
+  const deleteMutation = useDeleteTenant({
+    onSuccess: () => setDeleteTarget(null),
   });
 
   const createAdminMutation = useCreateTenantAdmin({
@@ -122,6 +138,12 @@ export default function TenantsPage() {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setAdminOpen(row.original.id)}>
               Add Admin
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => setDeleteTarget(row.original)}
+            >
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -301,6 +323,38 @@ export default function TenantsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Tenant Confirmation */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete tenant <strong>{deleteTarget?.name}</strong>?
+              This action cannot be undone. All users in this tenant will lose access.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (deleteTarget) {
+                  deleteMutation.mutate(deleteTarget.id);
+                }
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Create Admin User for Tenant Dialog */}
       <Dialog

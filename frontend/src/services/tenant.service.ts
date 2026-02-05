@@ -15,3 +15,7 @@ export async function updateTenant(id: string, payload: TenantUpdatePayload): Pr
   const res = await api.patch<Tenant>(`/admin/tenants/${id}`, payload);
   return res.data;
 }
+
+export async function deleteTenant(id: string): Promise<void> {
+  await api.delete(`/admin/tenants/${id}`);
+}

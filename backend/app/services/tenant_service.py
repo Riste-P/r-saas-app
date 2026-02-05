@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -15,17 +16,21 @@ logger = logging.getLogger(__name__)
 async def list_tenants(
     db: AsyncSession, *, offset: int = 0, limit: int = 50
 ) -> tuple[list[Tenant], int]:
-    """Return (tenants, total_count) with pagination."""
-    count_result = await db.execute(select(func.count()).select_from(Tenant))
+    """Return (tenants, total_count) with pagination. Excludes soft-deleted tenants."""
+    base = select(Tenant).where(Tenant.deleted_at.is_(None))
+
+    count_result = await db.execute(select(func.count()).select_from(base.subquery()))
     total = count_result.scalar_one()
 
-    query = select(Tenant).order_by(Tenant.created_at).offset(offset).limit(limit)
+    query = base.order_by(Tenant.created_at).offset(offset).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all()), total
 
 
 async def create_tenant(body: TenantCreate, db: AsyncSession) -> Tenant:
-    existing = await db.execute(select(Tenant).where(Tenant.slug == body.slug))
+    existing = await db.execute(
+        select(Tenant).where(Tenant.slug == body.slug, Tenant.deleted_at.is_(None))
+    )
     if existing.scalar_one_or_none():
         raise ConflictError("SLUG_EXISTS", "Slug already exists")
 
@@ -41,7 +46,9 @@ async def create_tenant(body: TenantCreate, db: AsyncSession) -> Tenant:
 async def update_tenant(
     tenant_id: UUID, body: TenantUpdate, db: AsyncSession
 ) -> Tenant:
-    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    result = await db.execute(
+        select(Tenant).where(Tenant.id == tenant_id, Tenant.deleted_at.is_(None))
+    )
     tenant = result.scalar_one_or_none()
     if not tenant:
         raise NotFoundError("TENANT_NOT_FOUND", "Tenant not found")
@@ -61,15 +68,19 @@ async def update_tenant(
     return tenant
 
 
-async def deactivate_tenant(tenant_id: UUID, db: AsyncSession) -> None:
-    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+async def delete_tenant(tenant_id: UUID, db: AsyncSession) -> None:
+    """Soft-delete a tenant by setting deleted_at timestamp."""
+    result = await db.execute(
+        select(Tenant).where(Tenant.id == tenant_id, Tenant.deleted_at.is_(None))
+    )
     tenant = result.scalar_one_or_none()
     if not tenant:
         raise NotFoundError("TENANT_NOT_FOUND", "Tenant not found")
 
     if tenant.slug == SYSTEM_TENANT_SLUG:
-        raise ForbiddenError("SYSTEM_TENANT_PROTECTED", "Cannot deactivate system tenant")
+        raise ForbiddenError("SYSTEM_TENANT_PROTECTED", "Cannot delete system tenant")
 
+    tenant.deleted_at = datetime.now(timezone.utc)
     tenant.is_active = False
     await db.commit()
-    logger.info("Tenant deactivated id=%s", tenant_id)
+    logger.info("Tenant soft-deleted id=%s", tenant_id)

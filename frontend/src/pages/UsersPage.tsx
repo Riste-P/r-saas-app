@@ -35,13 +35,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/stores/auth";
-import { useUsersQuery, useCreateUser, useUpdateUser } from "@/hooks/useUsers";
+import { useUsersQuery, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useUsers";
 import { useTenantsQuery } from "@/hooks/useTenants";
 import type { UserListItem } from "@/types";
 
@@ -53,6 +63,7 @@ export default function UsersPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserListItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserListItem | null>(null);
   const [editRoleId, setEditRoleId] = useState("3");
   const [editActive, setEditActive] = useState(true);
   const [newEmail, setNewEmail] = useState("");
@@ -77,6 +88,10 @@ export default function UsersPage() {
 
   const updateMutation = useUpdateUser({
     onSuccess: () => setEditUser(null),
+  });
+
+  const deleteMutation = useDeleteUser({
+    onSuccess: () => setDeleteTarget(null),
   });
 
   function openEdit(user: UserListItem) {
@@ -134,6 +149,12 @@ export default function UsersPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => openEdit(row.original)}>
                 Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteTarget(row.original)}
+              >
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -374,6 +395,38 @@ export default function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.email}</strong>?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (deleteTarget) {
+                  deleteMutation.mutate(deleteTarget.id);
+                }
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

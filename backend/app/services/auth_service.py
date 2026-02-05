@@ -31,8 +31,14 @@ async def authenticate(email: str, password: str, db: AsyncSession) -> tuple[str
         logger.warning("Login failed for email=%s", email)
         raise UnauthorizedError("INVALID_CREDENTIALS", "Invalid credentials")
 
+    if user.deleted_at is not None:
+        raise ForbiddenError("USER_DELETED", "User has been deleted")
+
     if not user.is_active:
         raise ForbiddenError("USER_DEACTIVATED", "User is deactivated")
+
+    if user.tenant.deleted_at is not None:
+        raise ForbiddenError("TENANT_DELETED", "Tenant has been deleted")
 
     if not user.tenant.is_active:
         raise ForbiddenError("TENANT_DEACTIVATED", "Tenant is deactivated")
@@ -64,7 +70,10 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession) -> str:
     )
     user = result.scalar_one_or_none()
 
-    if not user or not user.is_active or not user.tenant.is_active:
+    if not user or user.deleted_at is not None or not user.is_active:
         raise UnauthorizedError("USER_INACTIVE", "User not found or inactive")
+
+    if user.tenant.deleted_at is not None or not user.tenant.is_active:
+        raise UnauthorizedError("TENANT_INACTIVE", "Tenant not found or inactive")
 
     return create_access_token(user.id, user.tenant_id, user.role.name)

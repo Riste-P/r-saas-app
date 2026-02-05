@@ -15,3 +15,7 @@ export async function updateUser(id: string, payload: UserUpdatePayload): Promis
   const res = await api.patch<UserListItem>(`/admin/users/${id}`, payload);
   return res.data;
 }
+
+export async function deleteUser(id: string): Promise<void> {
+  await api.delete(`/admin/users/${id}`);
+}

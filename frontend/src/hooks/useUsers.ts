@@ -40,3 +40,16 @@ export function useUpdateUser(opts?: { onSuccess?: () => void }) {
     onError: (err) => toast.error(getApiError(err, "Failed to update user")),
   });
 }
+
+export function useDeleteUser(opts?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => userService.deleteUser(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: USERS_KEY });
+      toast.success("User deleted successfully");
+      opts?.onSuccess?.();
+    },
+    onError: (err) => toast.error(getApiError(err, "Failed to delete user")),
+  });
+}

@@ -51,9 +51,9 @@ async def update_tenant(
 
 
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def deactivate_tenant(
+async def delete_tenant(
     tenant_id: UUID,
     user: User = Depends(require_role("superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
-    await tenant_service.deactivate_tenant(tenant_id, db)
+    await tenant_service.delete_tenant(tenant_id, db)

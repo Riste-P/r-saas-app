@@ -43,6 +43,19 @@ export function useUpdateTenant(opts?: { onSuccess?: () => void }) {
   });
 }
 
+export function useDeleteTenant(opts?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => tenantService.deleteTenant(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: TENANTS_KEY });
+      toast.success("Tenant deleted successfully");
+      opts?.onSuccess?.();
+    },
+    onError: (err) => toast.error(getApiError(err, "Failed to delete tenant")),
+  });
+}
+
 export function useCreateTenantAdmin(opts?: { onSuccess?: () => void }) {
   const qc = useQueryClient();
   return useMutation({
