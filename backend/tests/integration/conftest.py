@@ -29,9 +29,9 @@ TEST_DATABASE_URL = (
 _ROOT_URL = f"postgresql+asyncpg://{_DB_USER}:{_DB_PASS}@{_DB_HOST}:{_DB_PORT}/postgres"
 
 
-@pytest_asyncio.fixture(autouse=True)
+@pytest_asyncio.fixture(scope="session", autouse=True)
 async def _test_db():
-    """Create the test DB if needed, create all tables, yield session factory, then drop everything."""
+    """Create the test DB and tables once per session, drop at the end."""
     # Ensure the test database exists
     root_engine = create_async_engine(_ROOT_URL, isolation_level="AUTOCOMMIT")
     async with root_engine.connect() as conn:
