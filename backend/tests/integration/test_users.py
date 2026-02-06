@@ -99,3 +99,45 @@ async def test_deactivate_user(auth_client: AsyncClient, seed):
 async def test_list_users_unauthenticated(client: AsyncClient, seed):
     resp = await client.get("/api/admin/users")
     assert resp.status_code == 403 or resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_user_lifecycle(auth_client: AsyncClient, seed):
+    """Full lifecycle: create -> verify -> update -> verify updated_at -> delete -> verify gone."""
+    tenant_id = str(seed["system_tenant"].id)
+
+    # Create
+    create_resp = await auth_client.post(
+        "/api/admin/users",
+        json={
+            "email": "lifecycle@test.com",
+            "password": "password123",
+            "role_id": 3,
+            "tenant_id": tenant_id,
+        },
+    )
+    assert create_resp.status_code == 201
+    user = create_resp.json()
+    user_id = user["id"]
+    assert user["email"] == "lifecycle@test.com"
+    assert user["created_at"] is not None
+    assert user["updated_at"] is None
+
+    # Update
+    update_resp = await auth_client.patch(
+        f"/api/admin/users/{user_id}",
+        json={"role_id": 2},
+    )
+    assert update_resp.status_code == 200
+    updated_user = update_resp.json()
+    assert updated_user["role"] == "admin"
+    assert updated_user["updated_at"] is not None
+
+    # Delete
+    delete_resp = await auth_client.delete(f"/api/admin/users/{user_id}")
+    assert delete_resp.status_code == 204
+
+    # Verify deleted (not in list)
+    list_resp = await auth_client.get("/api/admin/users")
+    user_ids = [u["id"] for u in list_resp.json()["items"]]
+    assert user_id not in user_ids

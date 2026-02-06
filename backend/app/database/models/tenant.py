@@ -4,10 +4,10 @@ from sqlalchemy import Boolean, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database.base import Base, SoftDeleteMixin, TimestampMixin
+from app.database.base import AuditMixin, Base
 
 
-class Tenant(Base, TimestampMixin, SoftDeleteMixin):
+class Tenant(Base, AuditMixin):
     __tablename__ = "tenants"
 
     id: Mapped[uuid.UUID] = mapped_column(

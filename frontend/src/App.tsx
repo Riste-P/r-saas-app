@@ -1,21 +1,16 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { AdminRoute, PrivateRoute, PublicRoute, SuperAdminRoute } from "@/components/guards";
+import Layout from "@/components/Layout";
+import { Toaster } from "@/components/ui/sonner";
+import { getAccessToken } from "@/lib/api";
+import DashboardPage from "@/pages/DashboardPage";
+import LoginPage from "@/pages/LoginPage";
+import TenantsPage from "@/pages/tenants/TenantsPage";
+import UsersPage from "@/pages/users/UsersPage";
+import { useAuthStore } from "@/stores/auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { useAuthStore } from "@/stores/auth";
-import { getAccessToken } from "@/lib/api";
-import {
-  PublicRoute,
-  PrivateRoute,
-  AdminRoute,
-  SuperAdminRoute,
-} from "@/components/guards";
-import Layout from "@/components/Layout";
-import LoginPage from "@/pages/LoginPage";
-import DashboardPage from "@/pages/DashboardPage";
-import UsersPage from "@/pages/users/UsersPage";
-import TenantsPage from "@/pages/tenants/TenantsPage";
-import { Toaster } from "@/components/ui/sonner";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -47,39 +42,39 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthInitializer>
-          <Routes>
-            {/* Public routes */}
-            <Route element={<PublicRoute />}>
-              <Route path="/login" element={<LoginPage />} />
-            </Route>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthInitializer>
+            <Routes>
+              {/* Public routes */}
+              <Route element={<PublicRoute />}>
+                <Route path="/login" element={<LoginPage />} />
+              </Route>
 
-            {/* Authenticated routes */}
-            <Route element={<PrivateRoute />}>
-              <Route element={<Layout />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
+              {/* Authenticated routes */}
+              <Route element={<PrivateRoute />}>
+                <Route element={<Layout />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
 
-                {/* Admin routes */}
-                <Route element={<AdminRoute />}>
-                  <Route path="/admin/users" element={<UsersPage />} />
-                </Route>
+                  {/* Admin routes */}
+                  <Route element={<AdminRoute />}>
+                    <Route path="/admin/users" element={<UsersPage />} />
+                  </Route>
 
-                {/* SuperAdmin routes */}
-                <Route element={<SuperAdminRoute />}>
-                  <Route path="/admin/tenants" element={<TenantsPage />} />
+                  {/* SuperAdmin routes */}
+                  <Route element={<SuperAdminRoute />}>
+                    <Route path="/admin/tenants" element={<TenantsPage />} />
+                  </Route>
                 </Route>
               </Route>
-            </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </AuthInitializer>
-      </BrowserRouter>
-      <Toaster position="top-right" richColors />
-    </QueryClientProvider>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </AuthInitializer>
+        </BrowserRouter>
+        <Toaster position="top-right" richColors />
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

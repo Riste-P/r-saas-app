@@ -26,6 +26,7 @@ class TenantResponse(BaseModel):
     slug: str
     is_active: bool
     created_at: datetime
+    updated_at: datetime | None
 
     @classmethod
     def from_entity(cls, tenant: Tenant) -> TenantResponse:
@@ -35,4 +36,5 @@ class TenantResponse(BaseModel):
             slug=tenant.slug,
             is_active=tenant.is_active,
             created_at=tenant.created_at,
+            updated_at=tenant.updated_at,
         )

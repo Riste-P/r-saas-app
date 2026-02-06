@@ -26,7 +26,7 @@ _DB_PASS = os.getenv("TEST_DB_PASS", "saas_dev_password_2026")
 TEST_DATABASE_URL = (
     f"postgresql+asyncpg://{_DB_USER}:{_DB_PASS}@{_DB_HOST}:{_DB_PORT}/saas_test"
 )
-_ROOT_URL = f"postgresql+asyncpg://{_DB_USER}:{_DB_PASS}@{_DB_HOST}:{_DB_PORT}/saas_db"
+_ROOT_URL = f"postgresql+asyncpg://{_DB_USER}:{_DB_PASS}@{_DB_HOST}:{_DB_PORT}/postgres"
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -47,19 +47,8 @@ async def _test_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    session_factory = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    # Override the app's get_db dependency
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-        async with session_factory() as session:
-            yield session
-
-    app.dependency_overrides[get_db] = override_get_db
-
-    # Store on module-level so other fixtures can access it
-    _state["session_factory"] = session_factory
+    # Store engine so db fixture can create transactional sessions
+    _state["engine"] = engine
 
     yield
 
@@ -76,8 +65,28 @@ _state: dict = {}
 
 @pytest_asyncio.fixture
 async def db() -> AsyncGenerator[AsyncSession, None]:
-    async with _state["session_factory"]() as session:
+    """Session with automatic rollback for test isolation."""
+    engine = _state["engine"]
+    async with engine.connect() as conn:
+        # Start a transaction that will be rolled back at the end
+        trans = await conn.begin()
+
+        # Create session bound to this connection
+        session = AsyncSession(conn, expire_on_commit=False)
+        # Use nested transaction so commit() only commits the savepoint
+        await session.begin_nested()
+
+        # Override get_db so HTTP requests use the same transactional session
+        async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+            yield session
+
+        app.dependency_overrides[get_db] = override_get_db
+
         yield session
+
+        # Rollback the outer transaction - all changes discarded
+        await session.close()
+        await trans.rollback()
 
 
 @pytest_asyncio.fixture
@@ -103,7 +112,7 @@ async def seed(db: AsyncSession):
         role_id=1,
     )
     db.add(superadmin)
-    await db.commit()
+    await db.flush()  # Flush instead of commit - data visible in transaction, rolled back after test
 
     return {"superadmin": superadmin, "system_tenant": system_tenant}
 

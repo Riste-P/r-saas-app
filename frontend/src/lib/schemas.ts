@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // === Shared field validators ===
-const email = z.string().min(1, "Email is required").email("Invalid email address");
+const email = z.email({ message: "Invalid email address" });
 const password = z.string().min(8, "Password must be at least 8 characters");
 
 // === Auth ===

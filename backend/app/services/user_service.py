@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.dependencies import is_superadmin
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.utils.security import hash_password
-from app.database.utils.tenant import tenant_filter
+from app.database.utils.common import tenant_filter
 from app.database.models.user import User
 from app.dto.user import CreateUserRequest, UpdateUserRequest
 
@@ -81,6 +81,7 @@ async def update_user(
     if body.is_active is not None:
         target.is_active = body.is_active
 
+    target.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(target, attribute_names=["role", "tenant"])
 
@@ -107,6 +108,7 @@ async def delete_user(user_id: UUID, current_user: User, db: AsyncSession) -> No
         raise ForbiddenError("SUPERADMIN_PROTECTED", "Cannot delete superadmin account")
 
     target.deleted_at = datetime.now(timezone.utc)
+    target.updated_at = datetime.now(timezone.utc)
     target.is_active = False
     await db.commit()
     logger.info("User soft-deleted id=%s by=%s", user_id, current_user.id)

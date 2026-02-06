@@ -4,10 +4,10 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database.base import Base, SoftDeleteMixin, TimestampMixin
+from app.database.base import AuditMixin, Base
 
 
-class User(Base, TimestampMixin, SoftDeleteMixin):
+class User(Base, AuditMixin):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(

@@ -77,3 +77,38 @@ async def test_deactivate_tenant(auth_client: AsyncClient):
 
     resp = await auth_client.delete(f"/api/admin/tenants/{tenant_id}")
     assert resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_tenant_lifecycle(auth_client: AsyncClient):
+    """Full lifecycle: create -> verify -> update -> verify updated_at -> delete -> verify gone."""
+    # Create
+    create_resp = await auth_client.post(
+        "/api/admin/tenants",
+        json={"name": "Lifecycle Corp", "slug": "lifecycle"},
+    )
+    assert create_resp.status_code == 201
+    tenant = create_resp.json()
+    tenant_id = tenant["id"]
+    assert tenant["name"] == "Lifecycle Corp"
+    assert tenant["created_at"] is not None
+    assert tenant["updated_at"] is None
+
+    # Update
+    update_resp = await auth_client.patch(
+        f"/api/admin/tenants/{tenant_id}",
+        json={"name": "Lifecycle Corp Updated"},
+    )
+    assert update_resp.status_code == 200
+    updated_tenant = update_resp.json()
+    assert updated_tenant["name"] == "Lifecycle Corp Updated"
+    assert updated_tenant["updated_at"] is not None
+
+    # Delete
+    delete_resp = await auth_client.delete(f"/api/admin/tenants/{tenant_id}")
+    assert delete_resp.status_code == 204
+
+    # Verify deleted (not in list)
+    list_resp = await auth_client.get("/api/admin/tenants")
+    tenant_ids = [t["id"] for t in list_resp.json()["items"]]
+    assert tenant_id not in tenant_ids

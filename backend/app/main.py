@@ -13,11 +13,9 @@ setup_logging()
 
 app = FastAPI(title="SaaS API", version="0.1.0")
 
-# --- Exception handlers ---
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(Exception, unhandled_error_handler)
 
-# --- Middleware ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -26,7 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Routers ---
 app.include_router(auth.router, prefix="/api")
 app.include_router(tenants.router, prefix="/api")
 app.include_router(users.router, prefix="/api")

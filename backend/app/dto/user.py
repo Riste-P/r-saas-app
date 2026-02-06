@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
     tenant_id: UUID
     tenant_name: str
     created_at: datetime
+    updated_at: datetime | None
 
     @classmethod
     def from_entity(cls, user: User) -> UserResponse:
@@ -41,4 +42,5 @@ class UserResponse(BaseModel):
             tenant_id=user.tenant_id,
             tenant_name=user.tenant.name,
             created_at=user.created_at,
+            updated_at=user.updated_at,
         )

@@ -61,6 +61,7 @@ async def update_tenant(
     if body.is_active is not None:
         tenant.is_active = body.is_active
 
+    tenant.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(tenant)
 
@@ -81,6 +82,7 @@ async def delete_tenant(tenant_id: UUID, db: AsyncSession) -> None:
         raise ForbiddenError("SYSTEM_TENANT_PROTECTED", "Cannot delete system tenant")
 
     tenant.deleted_at = datetime.now(timezone.utc)
+    tenant.updated_at = datetime.now(timezone.utc)
     tenant.is_active = False
     await db.commit()
     logger.info("Tenant soft-deleted id=%s", tenant_id)

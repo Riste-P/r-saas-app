@@ -11,13 +11,15 @@ class Base(DeclarativeBase):
     pass
 
 
-class TimestampMixin:
+class AuditMixin:
+    """Mixin for created_at, updated_at timestamps and soft delete."""
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-
-
-class SoftDeleteMixin:
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None, onupdate=func.now()
+    )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
