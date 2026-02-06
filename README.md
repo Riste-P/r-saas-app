@@ -6,7 +6,7 @@ A full-stack multi-tenant SaaS application with role-based access control, built
 
 **Backend:** Python 3.14+ / FastAPI / SQLAlchemy (async) / Alembic / JWT Auth
 
-**Frontend:** React 19 / TypeScript / Vite / Tailwind CSS / Radix UI / Zustand / React Query / React Hook Form / Zod
+**Frontend:** React 19 / TypeScript / Vite / Tailwind CSS / Radix UI / Zustand / React Query / React Hook Form / Zod 
 
 **Database:** PostgreSQL 18
 

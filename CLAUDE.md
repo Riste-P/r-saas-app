@@ -48,4 +48,4 @@ docker-compose --profile test up test --build   # Run backend tests
 - Forms use Zod schemas (`lib/schemas.ts`) + React Hook Form + `@hookform/resolvers/zod`
 - Data fetching via TanStack Query hooks in `hooks/`. Actual fetch logic in `services/`
 - Keep components small — split when a component grows large, but don't split preemptively
-- Use Chrome MCP DevTools and the running Docker app (localhost:3000) to test UI changes when needed
+- Use Chrome MCP DevTools and the running Docker app (localhost:3000) to test UI changes when needed. Login credentials: `admin@system.com` / password from the initial migration (`backend/app/database/migrations/versions/ed7ae417d004_initial_schema.py`)
