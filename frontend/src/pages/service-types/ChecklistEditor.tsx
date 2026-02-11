@@ -1,4 +1,4 @@
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export function ChecklistEditor({
   onClose,
 }: ChecklistEditorProps) {
   const form = useForm<ChecklistEditorFormValues>({
-    resolver: zodResolver(checklistEditorSchema),
+    resolver: zodResolver(checklistEditorSchema) as Resolver<ChecklistEditorFormValues>,
     defaultValues: { items: [] },
   });
 

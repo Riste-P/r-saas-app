@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,7 @@ export function EditServiceTypeDialog({
   onClose,
 }: EditServiceTypeDialogProps) {
   const form = useForm<EditServiceTypeFormValues>({
-    resolver: zodResolver(editServiceTypeSchema),
+    resolver: zodResolver(editServiceTypeSchema) as Resolver<EditServiceTypeFormValues>,
     defaultValues: {
       name: "",
       description: "",

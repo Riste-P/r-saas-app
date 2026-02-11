@@ -10,3 +10,11 @@ export type {
   ServiceTypeCreatePayload,
   ServiceTypeUpdatePayload,
 } from "./serviceType";
+export type { Client, ClientCreatePayload, ClientUpdatePayload } from "./client";
+export type {
+  Property,
+  PropertyCreatePayload,
+  PropertySummary,
+  PropertyType,
+  PropertyUpdatePayload,
+} from "./property";

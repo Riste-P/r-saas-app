@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Building2, ClipboardList, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Building2, ClipboardList, Users2, Home, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: null },
   { to: "/service-types", label: "Service Types", icon: ClipboardList, roles: null },
+  { to: "/clients", label: "Clients", icon: Users2, roles: null },
+  { to: "/properties", label: "Properties", icon: Home, roles: null },
   {
     to: "/admin/users",
     label: "Users",

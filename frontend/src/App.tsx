@@ -6,6 +6,8 @@ import { getAccessToken } from "@/lib/api";
 import DashboardPage from "@/pages/DashboardPage";
 import LoginPage from "@/pages/LoginPage";
 import TenantsPage from "@/pages/tenants/TenantsPage";
+import ClientsPage from "@/pages/clients/ClientsPage";
+import PropertiesPage from "@/pages/properties/PropertiesPage";
 import ServiceTypesPage from "@/pages/service-types/ServiceTypesPage";
 import UsersPage from "@/pages/users/UsersPage";
 import { useAuthStore } from "@/stores/auth";
@@ -57,6 +59,8 @@ export default function App() {
                 <Route element={<Layout />}>
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/service-types" element={<ServiceTypesPage />} />
+                  <Route path="/clients" element={<ClientsPage />} />
+                  <Route path="/properties" element={<PropertiesPage />} />
 
                   {/* Admin routes */}
                   <Route element={<AdminRoute />}>
