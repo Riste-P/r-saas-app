@@ -51,3 +51,33 @@ export const createTenantAdminSchema = z.object({
   password,
 });
 export type CreateTenantAdminFormValues = z.infer<typeof createTenantAdminSchema>;
+
+// === Service Types ===
+export const checklistItemSchema = z.object({
+  name: z.string().min(1, "Name is required").max(255),
+  description: z.string().max(500).optional(),
+  sort_order: z.coerce.number().int().min(0).default(0),
+});
+
+export const createServiceTypeSchema = z.object({
+  name: z.string().min(1, "Name is required").max(255),
+  description: z.string().max(1000).optional(),
+  base_price: z.coerce.number().positive("Price must be positive"),
+  estimated_duration_minutes: z.coerce.number().int().positive("Duration must be positive"),
+  checklist_items: z.array(checklistItemSchema).default([]),
+});
+export type CreateServiceTypeFormValues = z.infer<typeof createServiceTypeSchema>;
+
+export const editServiceTypeSchema = z.object({
+  name: z.string().min(1, "Name is required").max(255),
+  description: z.string().max(1000).optional(),
+  base_price: z.coerce.number().positive("Price must be positive"),
+  estimated_duration_minutes: z.coerce.number().int().positive("Duration must be positive"),
+  is_active: z.boolean(),
+});
+export type EditServiceTypeFormValues = z.infer<typeof editServiceTypeSchema>;
+
+export const checklistEditorSchema = z.object({
+  items: z.array(checklistItemSchema),
+});
+export type ChecklistEditorFormValues = z.infer<typeof checklistEditorSchema>;

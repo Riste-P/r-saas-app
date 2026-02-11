@@ -6,6 +6,7 @@ import { getAccessToken } from "@/lib/api";
 import DashboardPage from "@/pages/DashboardPage";
 import LoginPage from "@/pages/LoginPage";
 import TenantsPage from "@/pages/tenants/TenantsPage";
+import ServiceTypesPage from "@/pages/service-types/ServiceTypesPage";
 import UsersPage from "@/pages/users/UsersPage";
 import { useAuthStore } from "@/stores/auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -55,6 +56,7 @@ export default function App() {
               <Route element={<PrivateRoute />}>
                 <Route element={<Layout />}>
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/service-types" element={<ServiceTypesPage />} />
 
                   {/* Admin routes */}
                   <Route element={<AdminRoute />}>
