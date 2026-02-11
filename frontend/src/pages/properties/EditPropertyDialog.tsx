@@ -28,7 +28,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useUpdateProperty } from "@/hooks/useProperties";
+import { useUpdateProperty, usePropertiesQuery } from "@/hooks/useProperties";
 import { useClientsQuery } from "@/hooks/useClients";
 import type { Property } from "@/types";
 import { editPropertySchema, type EditPropertyFormValues } from "@/lib/schemas";
@@ -40,22 +40,18 @@ interface EditPropertyDialogProps {
 
 export function EditPropertyDialog({ property, onClose }: EditPropertyDialogProps) {
   const { data: clients = [] } = useClientsQuery();
+  const { data: allProperties = [] } = usePropertiesQuery();
 
   const form = useForm<EditPropertyFormValues>({
     resolver: zodResolver(editPropertySchema),
     defaultValues: {
-      client_id: "",
+      client_id: "none",
+      parent_property_id: "none",
       property_type: "house",
       name: "",
       address: "",
       city: "",
-      postal_code: "",
-      floor: "",
-      access_instructions: "",
-      key_code: "",
-      contact_name: "",
-      contact_phone: "",
-      contact_email: "",
+      notes: "",
       is_active: true,
     },
   });
@@ -65,20 +61,13 @@ export function EditPropertyDialog({ property, onClose }: EditPropertyDialogProp
   useEffect(() => {
     if (property) {
       form.reset({
-        client_id: property.client_id,
+        client_id: property.client_id ?? "none",
+        parent_property_id: property.parent_property_id ?? "none",
         property_type: property.property_type,
         name: property.name,
-        address: property.address,
+        address: property.address ?? "",
         city: property.city ?? "",
-        postal_code: property.postal_code ?? "",
-        size_sqm: property.size_sqm ? String(property.size_sqm) : "",
-        num_rooms: property.num_rooms != null ? String(property.num_rooms) : "",
-        floor: property.floor ?? "",
-        access_instructions: property.access_instructions ?? "",
-        key_code: property.key_code ?? "",
-        contact_name: property.contact_name ?? "",
-        contact_phone: property.contact_phone ?? "",
-        contact_email: property.contact_email ?? "",
+        notes: property.notes ?? "",
         is_active: property.is_active,
       });
     }
@@ -88,20 +77,13 @@ export function EditPropertyDialog({ property, onClose }: EditPropertyDialogProp
     if (!property) return;
     updateMutation.mutate({
       id: property.id,
-      client_id: values.client_id,
+      client_id: values.client_id && values.client_id !== "none" ? values.client_id : undefined,
+      parent_property_id: values.parent_property_id && values.parent_property_id !== "none" ? values.parent_property_id : undefined,
       property_type: values.property_type,
       name: values.name,
-      address: values.address,
+      address: values.address || undefined,
       city: values.city || undefined,
-      postal_code: values.postal_code || undefined,
-      size_sqm: values.size_sqm ? Number(values.size_sqm) : undefined,
-      num_rooms: values.num_rooms ? Number(values.num_rooms) : undefined,
-      floor: values.floor || undefined,
-      access_instructions: values.access_instructions || undefined,
-      key_code: values.key_code || undefined,
-      contact_name: values.contact_name || undefined,
-      contact_phone: values.contact_phone || undefined,
-      contact_email: values.contact_email || undefined,
+      notes: values.notes || undefined,
       is_active: values.is_active,
     });
   }
@@ -123,9 +105,10 @@ export function EditPropertyDialog({ property, onClose }: EditPropertyDialogProp
                   <FormLabel>Client</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="No client" /></SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="none">No client</SelectItem>
                       {clients.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
@@ -156,6 +139,29 @@ export function EditPropertyDialog({ property, onClose }: EditPropertyDialogProp
                 </FormItem>
               )}
             />
+            {form.watch("property_type") === "apartment" && (
+              <FormField
+                control={form.control}
+                name="parent_property_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Part of</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {allProperties.filter((p) => p.is_active && p.id !== property?.id && p.property_type !== "apartment").map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="name"
@@ -178,72 +184,24 @@ export function EditPropertyDialog({ property, onClose }: EditPropertyDialogProp
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="postal_code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Postal Code</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="size_sqm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Size (sqm)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="num_rooms"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rooms</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
             <FormField
               control={form.control}
-              name="access_instructions"
+              name="city"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Access Instructions</FormLabel>
-                  <FormControl><Textarea rows={2} {...field} /></FormControl>
+                  <FormLabel>City</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
-              name="key_code"
+              name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Key Code</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl><Textarea rows={2} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

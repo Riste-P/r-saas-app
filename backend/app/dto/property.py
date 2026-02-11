@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -14,21 +13,13 @@ if TYPE_CHECKING:
 
 
 class CreatePropertyRequest(BaseModel):
-    client_id: UUID
+    client_id: UUID | None = None
     parent_property_id: UUID | None = None
     property_type: PropertyType
     name: str
-    address: str
+    address: str | None = None
     city: str | None = None
-    postal_code: str | None = None
-    size_sqm: Decimal | None = None
-    num_rooms: int | None = None
-    floor: str | None = None
-    access_instructions: str | None = None
-    key_code: str | None = None
-    contact_name: str | None = None
-    contact_phone: str | None = None
-    contact_email: str | None = None
+    notes: str | None = None
 
 
 class UpdatePropertyRequest(BaseModel):
@@ -38,15 +29,7 @@ class UpdatePropertyRequest(BaseModel):
     name: str | None = None
     address: str | None = None
     city: str | None = None
-    postal_code: str | None = None
-    size_sqm: Decimal | None = None
-    num_rooms: int | None = None
-    floor: str | None = None
-    access_instructions: str | None = None
-    key_code: str | None = None
-    contact_name: str | None = None
-    contact_phone: str | None = None
-    contact_email: str | None = None
+    notes: str | None = None
     is_active: bool | None = None
 
 
@@ -54,7 +37,7 @@ class PropertySummaryResponse(BaseModel):
     id: UUID
     name: str
     property_type: PropertyType
-    address: str
+    address: str | None
 
     @classmethod
     def from_entity(cls, prop: Property) -> PropertySummaryResponse:
@@ -68,22 +51,15 @@ class PropertySummaryResponse(BaseModel):
 
 class PropertyResponse(BaseModel):
     id: UUID
-    client_id: UUID
-    client_name: str
+    client_id: UUID | None
+    client_name: str | None
     parent_property_id: UUID | None
+    parent_property_name: str | None
     property_type: PropertyType
     name: str
-    address: str
+    address: str | None
     city: str | None
-    postal_code: str | None
-    size_sqm: Decimal | None
-    num_rooms: int | None
-    floor: str | None
-    access_instructions: str | None
-    key_code: str | None
-    contact_name: str | None
-    contact_phone: str | None
-    contact_email: str | None
+    notes: str | None
     is_active: bool
     child_properties: list[PropertySummaryResponse]
     created_at: datetime
@@ -94,21 +70,14 @@ class PropertyResponse(BaseModel):
         return cls(
             id=prop.id,
             client_id=prop.client_id,
-            client_name=prop.client.name,
+            client_name=prop.client.name if prop.client else None,
             parent_property_id=prop.parent_property_id,
+            parent_property_name=prop.parent_property.name if prop.parent_property else None,
             property_type=prop.property_type,
             name=prop.name,
             address=prop.address,
             city=prop.city,
-            postal_code=prop.postal_code,
-            size_sqm=prop.size_sqm,
-            num_rooms=prop.num_rooms,
-            floor=prop.floor,
-            access_instructions=prop.access_instructions,
-            key_code=prop.key_code,
-            contact_name=prop.contact_name,
-            contact_phone=prop.contact_phone,
-            contact_email=prop.contact_email,
+            notes=prop.notes,
             is_active=prop.is_active,
             child_properties=[
                 PropertySummaryResponse.from_entity(child)

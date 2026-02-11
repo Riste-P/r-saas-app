@@ -136,26 +136,23 @@ PropertyType(str, Enum): house, apartment, building, commercial
 
 Property(Base, AuditMixin, TenantMixin):
   id: UUID (PK)
-  client_id: UUID FK → clients.id, indexed
-  parent_property_id: UUID FK → properties.id, nullable, indexed  (self-ref for building→apartment)
+  client_id: UUID FK → clients.id, nullable, indexed  (property doesn't have to belong to a client)
+  parent_property_id: UUID FK → properties.id, nullable, indexed  (self-ref: apartment can be part of any non-apartment property)
   property_type: Enum(PropertyType)
   name: String(255)
-  address: String(500)
+  address: String(500), nullable
   city: String(100), nullable
-  postal_code: String(20), nullable
-  size_sqm: Numeric(8,2), nullable
-  num_rooms: Integer, nullable
-  floor: String(20), nullable
-  access_instructions: Text, nullable
-  key_code: String(100), nullable
-  contact_name: String(255), nullable    (apartment occupant)
-  contact_phone: String(50), nullable
-  contact_email: String(255), nullable
+  notes: Text, nullable
   is_active: Boolean, default True
-  → client: relationship
+  → client: relationship (optional)
   → parent_property: relationship (self-ref)
   → child_properties: relationship (self-ref)
 ```
+
+**Constraints:**
+- `client_id` is optional — properties can exist without a client and be linked later
+- `parent_property_id` — apartments can be linked to any property type except other apartments (validated in service layer)
+- `address` is optional
 
 **Modify** `backend/app/database/models/__init__.py`
 
@@ -169,9 +166,10 @@ Run `alembic revision --autogenerate -m "add clients and properties"`
 - `CreateClientRequest`, `UpdateClientRequest`, `ClientResponse` (includes `property_count`)
 
 **Create** `backend/app/dto/property.py`
-- `CreatePropertyRequest`, `UpdatePropertyRequest`
-- `PropertySummaryResponse` — lightweight for apartment listings
-- `PropertyResponse` — full details with `child_properties: list[PropertySummaryResponse]` and `client_name`
+- `CreatePropertyRequest(client_id?, parent_property_id?, property_type, name, address?, city?, notes?)`
+- `UpdatePropertyRequest(client_id?, parent_property_id?, property_type?, name?, address?, city?, notes?, is_active?)`
+- `PropertySummaryResponse` — lightweight for child property listings
+- `PropertyResponse` — full details with `child_properties: list[PropertySummaryResponse]`, `client_name`, and `parent_property_name`
 
 ### 3.4 Services
 
@@ -181,9 +179,11 @@ Run `alembic revision --autogenerate -m "add clients and properties"`
 - `delete_client` also soft-deletes all associated properties
 
 **Create** `backend/app/services/property_service.py`
-- `list_properties(... client_id?, property_type?, parent_property_id?)` — filterable
-- `create_property` — validates client belongs to tenant; if parent_property_id set, validates parent is a building
-- `delete_property` — also soft-deletes child properties (apartments)
+- `list_properties(... client_id?, property_type?, parent_property_id?)` — filterable, eager loads client + parent_property + child_properties
+- `get_property` — single fetch with tenant filter, eager loads all relationships
+- `create_property` — validates client belongs to tenant (if provided); validates parent exists and is not an apartment (if provided)
+- `update_property` — partial update, same validations as create for client/parent changes
+- `delete_property` — also soft-deletes child properties (apartments in a building)
 
 ### 3.5 API Routers
 
@@ -217,10 +217,10 @@ Run `alembic revision --autogenerate -m "add clients and properties"`
 
 ### 4.4 Pages — Properties
 
-**Create** `frontend/src/pages/properties/PropertiesPage.tsx` — columns: Name, Type badge, Client, Address, Size, Status, Actions. Filter dropdowns for client and property type.
+**Create** `frontend/src/pages/properties/PropertiesPage.tsx` — columns: Name, Type badge, Client, Part of, Address, Status, Actions. Filter dropdowns for client and property type.
 **Create** `frontend/src/pages/properties/PropertyColumns.tsx`
-**Create** `frontend/src/pages/properties/CreatePropertyDialog.tsx` — client dropdown, property type selector. When type=apartment: show parent building dropdown + contact fields
-**Create** `frontend/src/pages/properties/EditPropertyDialog.tsx`
+**Create** `frontend/src/pages/properties/CreatePropertyDialog.tsx` — optional client dropdown ("No client" default), property type selector. When type=apartment: show "Part of" dropdown listing all non-apartment properties ("None" default).
+**Create** `frontend/src/pages/properties/EditPropertyDialog.tsx` — same fields as create + is_active toggle. "Part of" dropdown shown for apartments, excludes current property and apartments.
 **Create** `frontend/src/pages/properties/DeletePropertyDialog.tsx`
 
 ### 4.5 Routing

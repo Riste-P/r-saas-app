@@ -4,27 +4,20 @@ export interface PropertySummary {
   id: string;
   name: string;
   property_type: PropertyType;
-  address: string;
+  address: string | null;
 }
 
 export interface Property {
   id: string;
-  client_id: string;
-  client_name: string;
+  client_id: string | null;
+  client_name: string | null;
   parent_property_id: string | null;
+  parent_property_name: string | null;
   property_type: PropertyType;
   name: string;
-  address: string;
+  address: string | null;
   city: string | null;
-  postal_code: string | null;
-  size_sqm: string | null;
-  num_rooms: number | null;
-  floor: string | null;
-  access_instructions: string | null;
-  key_code: string | null;
-  contact_name: string | null;
-  contact_phone: string | null;
-  contact_email: string | null;
+  notes: string | null;
   is_active: boolean;
   child_properties: PropertySummary[];
   created_at: string;
@@ -32,21 +25,13 @@ export interface Property {
 }
 
 export interface PropertyCreatePayload {
-  client_id: string;
+  client_id?: string;
   parent_property_id?: string;
   property_type: PropertyType;
   name: string;
-  address: string;
+  address?: string;
   city?: string;
-  postal_code?: string;
-  size_sqm?: number;
-  num_rooms?: number;
-  floor?: string;
-  access_instructions?: string;
-  key_code?: string;
-  contact_name?: string;
-  contact_phone?: string;
-  contact_email?: string;
+  notes?: string;
 }
 
 export interface PropertyUpdatePayload {
@@ -56,14 +41,6 @@ export interface PropertyUpdatePayload {
   name?: string;
   address?: string;
   city?: string;
-  postal_code?: string;
-  size_sqm?: number;
-  num_rooms?: number;
-  floor?: string;
-  access_instructions?: string;
-  key_code?: string;
-  contact_name?: string;
-  contact_phone?: string;
-  contact_email?: string;
+  notes?: string;
   is_active?: boolean;
 }

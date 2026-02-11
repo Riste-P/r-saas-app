@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import AppError, NotFoundError
 from app.database.models.client import Client
 from app.database.models.property import Property, PropertyType
 from app.database.models.user import User
@@ -28,7 +28,7 @@ async def list_properties(
 ) -> tuple[list[Property], int]:
     base = (
         select(Property)
-        .options(selectinload(Property.client), selectinload(Property.child_properties))
+        .options(selectinload(Property.client), selectinload(Property.parent_property), selectinload(Property.child_properties))
         .where(Property.deleted_at.is_(None))
     )
     base = tenant_filter(base, current_user, Property.tenant_id)
@@ -53,7 +53,7 @@ async def get_property(
 ) -> Property:
     query = (
         select(Property)
-        .options(selectinload(Property.client), selectinload(Property.child_properties))
+        .options(selectinload(Property.client), selectinload(Property.parent_property), selectinload(Property.child_properties))
         .where(Property.id == property_id, Property.deleted_at.is_(None))
     )
     query = tenant_filter(query, current_user, Property.tenant_id)
@@ -68,30 +68,33 @@ async def get_property(
 async def create_property(
     body: CreatePropertyRequest, current_user: User, db: AsyncSession
 ) -> Property:
-    # Validate client belongs to tenant
-    client_query = select(Client).where(
-        Client.id == body.client_id,
-        Client.deleted_at.is_(None),
-    )
-    client_query = tenant_filter(client_query, current_user, Client.tenant_id)
-    client_result = await db.execute(client_query)
-    if not client_result.scalar_one_or_none():
-        raise NotFoundError("CLIENT_NOT_FOUND", "Client not found")
+    # Validate client belongs to tenant (if provided)
+    if body.client_id is not None:
+        client_query = select(Client).where(
+            Client.id == body.client_id,
+            Client.deleted_at.is_(None),
+        )
+        client_query = tenant_filter(client_query, current_user, Client.tenant_id)
+        client_result = await db.execute(client_query)
+        if not client_result.scalar_one_or_none():
+            raise NotFoundError("CLIENT_NOT_FOUND", "Client not found")
 
     # Validate parent property if provided
     if body.parent_property_id is not None:
         parent_query = select(Property).where(
             Property.id == body.parent_property_id,
             Property.deleted_at.is_(None),
-            Property.property_type == PropertyType.building,
         )
         parent_query = tenant_filter(parent_query, current_user, Property.tenant_id)
         parent_result = await db.execute(parent_query)
-        if not parent_result.scalar_one_or_none():
+        parent = parent_result.scalar_one_or_none()
+        if not parent:
             raise NotFoundError(
                 "PARENT_NOT_FOUND",
-                "Parent property not found or is not a building",
+                "Parent property not found",
             )
+        if parent.property_type == PropertyType.apartment:
+            raise AppError("INVALID_PARENT", "An apartment cannot be part of another apartment")
 
     prop = Property(
         client_id=body.client_id,
@@ -100,23 +103,14 @@ async def create_property(
         name=body.name,
         address=body.address,
         city=body.city,
-        postal_code=body.postal_code,
-        size_sqm=body.size_sqm,
-        num_rooms=body.num_rooms,
-        floor=body.floor,
-        access_instructions=body.access_instructions,
-        key_code=body.key_code,
-        contact_name=body.contact_name,
-        contact_phone=body.contact_phone,
-        contact_email=body.contact_email,
+        notes=body.notes,
         tenant_id=current_user.tenant_id,
     )
     db.add(prop)
     await db.commit()
-    await db.refresh(prop, attribute_names=["client", "child_properties"])
 
     logger.info("Property created id=%s by=%s", prop.id, current_user.id)
-    return prop
+    return await get_property(prop.id, current_user, db)
 
 
 async def update_property(
@@ -143,15 +137,17 @@ async def update_property(
             parent_query = select(Property).where(
                 Property.id == body.parent_property_id,
                 Property.deleted_at.is_(None),
-                Property.property_type == PropertyType.building,
             )
             parent_query = tenant_filter(parent_query, current_user, Property.tenant_id)
             parent_result = await db.execute(parent_query)
-            if not parent_result.scalar_one_or_none():
+            parent = parent_result.scalar_one_or_none()
+            if not parent:
                 raise NotFoundError(
                     "PARENT_NOT_FOUND",
-                    "Parent property not found or is not a building",
+                    "Parent property not found",
                 )
+            if parent.property_type == PropertyType.apartment:
+                raise AppError("INVALID_PARENT", "An apartment cannot be part of another apartment")
             prop.parent_property_id = body.parent_property_id
 
     if body.property_type is not None:
@@ -162,33 +158,16 @@ async def update_property(
         prop.address = body.address
     if body.city is not None:
         prop.city = body.city
-    if body.postal_code is not None:
-        prop.postal_code = body.postal_code
-    if body.size_sqm is not None:
-        prop.size_sqm = body.size_sqm
-    if body.num_rooms is not None:
-        prop.num_rooms = body.num_rooms
-    if body.floor is not None:
-        prop.floor = body.floor
-    if body.access_instructions is not None:
-        prop.access_instructions = body.access_instructions
-    if body.key_code is not None:
-        prop.key_code = body.key_code
-    if body.contact_name is not None:
-        prop.contact_name = body.contact_name
-    if body.contact_phone is not None:
-        prop.contact_phone = body.contact_phone
-    if body.contact_email is not None:
-        prop.contact_email = body.contact_email
+    if body.notes is not None:
+        prop.notes = body.notes
     if body.is_active is not None:
         prop.is_active = body.is_active
 
     prop.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(prop, attribute_names=["client", "child_properties"])
 
     logger.info("Property updated id=%s by=%s", property_id, current_user.id)
-    return prop
+    return await get_property(property_id, current_user, db)
 
 
 async def delete_property(

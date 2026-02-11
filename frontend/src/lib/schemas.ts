@@ -106,39 +106,24 @@ export type EditClientFormValues = z.infer<typeof editClientSchema>;
 
 // === Properties ===
 export const createPropertySchema = z.object({
-  client_id: z.string().min(1, "Please select a client"),
+  client_id: z.string().optional().or(z.literal("")),
   parent_property_id: z.string().optional().or(z.literal("")),
   property_type: z.enum(["house", "apartment", "building", "commercial"]),
   name: z.string().min(1, "Name is required").max(255),
-  address: z.string().min(1, "Address is required").max(500),
+  address: z.string().max(500).optional().or(z.literal("")),
   city: z.string().max(100).optional().or(z.literal("")),
-  postal_code: z.string().max(20).optional().or(z.literal("")),
-  size_sqm: z.string().optional().or(z.literal("")),
-  num_rooms: z.string().optional().or(z.literal("")),
-  floor: z.string().max(20).optional().or(z.literal("")),
-  access_instructions: z.string().optional().or(z.literal("")),
-  key_code: z.string().max(100).optional().or(z.literal("")),
-  contact_name: z.string().max(255).optional().or(z.literal("")),
-  contact_phone: z.string().max(50).optional().or(z.literal("")),
-  contact_email: z.string().email("Invalid email").optional().or(z.literal("")),
+  notes: z.string().optional().or(z.literal("")),
 });
 export type CreatePropertyFormValues = z.infer<typeof createPropertySchema>;
 
 export const editPropertySchema = z.object({
-  client_id: z.string().min(1, "Please select a client"),
+  client_id: z.string().optional().or(z.literal("")),
+  parent_property_id: z.string().optional().or(z.literal("")),
   property_type: z.enum(["house", "apartment", "building", "commercial"]),
   name: z.string().min(1, "Name is required").max(255),
-  address: z.string().min(1, "Address is required").max(500),
+  address: z.string().max(500).optional().or(z.literal("")),
   city: z.string().max(100).optional().or(z.literal("")),
-  postal_code: z.string().max(20).optional().or(z.literal("")),
-  size_sqm: z.string().optional().or(z.literal("")),
-  num_rooms: z.string().optional().or(z.literal("")),
-  floor: z.string().max(20).optional().or(z.literal("")),
-  access_instructions: z.string().optional().or(z.literal("")),
-  key_code: z.string().max(100).optional().or(z.literal("")),
-  contact_name: z.string().max(255).optional().or(z.literal("")),
-  contact_phone: z.string().max(50).optional().or(z.literal("")),
-  contact_email: z.string().email("Invalid email").optional().or(z.literal("")),
+  notes: z.string().optional().or(z.literal("")),
   is_active: z.boolean(),
 });
 export type EditPropertyFormValues = z.infer<typeof editPropertySchema>;

@@ -39,14 +39,20 @@ export function getPropertyColumns({ onEdit, onDelete }: PropertyColumnCallbacks
     columnHelper.accessor("client_name", {
       header: "Client",
       cell: (info) => (
-        <span className="text-muted-foreground">{info.getValue()}</span>
+        <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>
+      ),
+    }),
+    columnHelper.accessor("parent_property_name", {
+      header: "Part of",
+      cell: (info) => (
+        <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>
       ),
     }),
     columnHelper.accessor("address", {
       header: "Address",
       cell: (info) => (
         <span className="max-w-[200px] truncate text-muted-foreground">
-          {info.getValue()}
+          {info.getValue() ?? "—"}
         </span>
       ),
     }),

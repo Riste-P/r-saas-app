@@ -29,16 +29,15 @@ async def test_create_property(auth_client: AsyncClient):
         name="Beach House",
         address="99 Ocean Dr",
         city="Miami",
-        size_sqm=200,
-        num_rooms=4,
+        notes="Ring doorbell twice",
     )
     assert data["name"] == "Beach House"
     assert data["property_type"] == "house"
     assert data["client_name"] == "Create Prop Client"
     assert data["city"] == "Miami"
-    assert data["size_sqm"] == "200"
-    assert data["num_rooms"] == 4
+    assert data["notes"] == "Ring doorbell twice"
     assert data["is_active"] is True
+    assert data["parent_property_name"] is None
     assert data["child_properties"] == []
 
     # Invalid client should fail
@@ -65,12 +64,10 @@ async def test_create_apartment_with_building(auth_client: AsyncClient):
     apt = await _create_property(
         auth_client, client["id"],
         property_type="apartment", name="Apt 1A", address="10 High St, 1A",
-        parent_property_id=building["id"], floor="1",
-        contact_name="Tenant Joe", contact_phone="+111",
+        parent_property_id=building["id"],
     )
     assert apt["parent_property_id"] == building["id"]
-    assert apt["floor"] == "1"
-    assert apt["contact_name"] == "Tenant Joe"
+    assert apt["parent_property_name"] == "Tower A"
 
     # Building should list apartment as child
     resp = await auth_client.get(f"/api/properties/{building['id']}")
@@ -79,18 +76,30 @@ async def test_create_apartment_with_building(auth_client: AsyncClient):
     assert len(children) == 1
     assert children[0]["name"] == "Apt 1A"
 
-    # Apartment under a house should fail (parent must be building)
+    # Apartment can be linked to any property type (e.g. a house)
     house = await _create_property(
         auth_client, client["id"], name="A House", address="5 Low St",
     )
     resp = await auth_client.post("/api/properties", json={
         "client_id": client["id"],
         "property_type": "apartment",
-        "name": "Bad Apt",
-        "address": "Nowhere",
+        "name": "House Apt",
+        "address": "5 Low St, 1A",
         "parent_property_id": house["id"],
     })
-    assert resp.status_code == 404
+    assert resp.status_code == 201
+    assert resp.json()["parent_property_id"] == house["id"]
+    assert resp.json()["parent_property_name"] == "A House"
+
+    # Apartment cannot be part of another apartment
+    resp = await auth_client.post("/api/properties", json={
+        "client_id": client["id"],
+        "property_type": "apartment",
+        "name": "Nested Apt",
+        "address": "10 High St, 2B",
+        "parent_property_id": apt["id"],
+    })
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -126,12 +135,12 @@ async def test_update_property(auth_client: AsyncClient):
 
     resp = await auth_client.patch(
         f"/api/properties/{prop['id']}",
-        json={"name": "New Name", "num_rooms": 3, "is_active": False},
+        json={"name": "New Name", "notes": "Use side door", "is_active": False},
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "New Name"
-    assert data["num_rooms"] == 3
+    assert data["notes"] == "Use side door"
     assert data["is_active"] is False
     assert data["updated_at"] is not None
 
