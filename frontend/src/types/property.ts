@@ -5,6 +5,8 @@ export interface PropertySummary {
   name: string;
   property_type: PropertyType;
   address: string | null;
+  client_name: string | null;
+  is_active: boolean;
 }
 
 export interface Property {
@@ -32,11 +34,12 @@ export interface PropertyCreatePayload {
   address?: string;
   city?: string;
   notes?: string;
+  number_of_apartments?: number;
 }
 
 export interface PropertyUpdatePayload {
-  client_id?: string;
-  parent_property_id?: string;
+  client_id?: string | null;
+  parent_property_id?: string | null;
   property_type?: PropertyType;
   name?: string;
   address?: string;

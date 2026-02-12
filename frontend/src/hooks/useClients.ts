@@ -1,10 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, skipToken } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getApiError } from "@/lib/errors";
 import * as clientService from "@/services/client.service";
 import type { ClientCreatePayload, ClientUpdatePayload } from "@/types";
 
 const CLIENTS_KEY = ["clients"] as const;
+const CLIENT_DETAIL_KEY = ["client"] as const;
 
 export function useClientsQuery() {
   return useQuery({
@@ -16,9 +17,8 @@ export function useClientsQuery() {
 
 export function useClientQuery(id: string | null) {
   return useQuery({
-    queryKey: [...CLIENTS_KEY, id],
-    queryFn: () => clientService.getClient(id!),
-    enabled: !!id,
+    queryKey: [...CLIENT_DETAIL_KEY, id],
+    queryFn: id ? () => clientService.getClient(id) : skipToken,
   });
 }
 
@@ -42,6 +42,7 @@ export function useUpdateClient(opts?: { onSuccess?: () => void }) {
       clientService.updateClient(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CLIENTS_KEY });
+      qc.invalidateQueries({ queryKey: CLIENT_DETAIL_KEY });
       toast.success("Client updated successfully");
       opts?.onSuccess?.();
     },

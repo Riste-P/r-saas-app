@@ -12,11 +12,11 @@ The cleaning business management app currently has auth, users, tenants, and a m
 
 ---
 
-## Phase 1: Service Types (Backend)
+## Phase 1: Service Types (Backend) ✅
 
 ### 1.1 Models
 
-**Create** `backend/app/database/models/service_type.py`
+**Created** `backend/app/database/models/service_type.py`
 ```
 ServiceType(Base, AuditMixin, TenantMixin):
   id: UUID (PK)
@@ -28,7 +28,7 @@ ServiceType(Base, AuditMixin, TenantMixin):
   → checklist_items: relationship, ordered by sort_order
 ```
 
-**Create** `backend/app/database/models/checklist_item.py`
+**Created** `backend/app/database/models/checklist_item.py`
 ```
 ChecklistItem(Base, AuditMixin, TenantMixin):
   id: UUID (PK)
@@ -39,17 +39,16 @@ ChecklistItem(Base, AuditMixin, TenantMixin):
   → service_type: relationship
 ```
 
-**Modify** `backend/app/database/models/__init__.py` — add imports + `__all__`
+**Modified** `backend/app/database/models/__init__.py` — added imports + `__all__`
 
 ### 1.2 Migration
 
-Run `alembic revision --autogenerate -m "add service types"`
-- Creates `service_types` and `checklist_items` tables
+- Created `service_types` and `checklist_items` tables
 - Unique partial index on `(tenant_id, name) WHERE deleted_at IS NULL` for service_types
 
 ### 1.3 DTOs
 
-**Create** `backend/app/dto/service_type.py`
+**Created** `backend/app/dto/service_type.py`
 - `ChecklistItemRequest(name, description?, sort_order=0)`
 - `CreateServiceTypeRequest(name, description?, base_price, estimated_duration_minutes, checklist_items=[])`
 - `UpdateServiceTypeRequest(name?, description?, base_price?, estimated_duration_minutes?, is_active?)`
@@ -59,7 +58,7 @@ Run `alembic revision --autogenerate -m "add service types"`
 
 ### 1.4 Service
 
-**Create** `backend/app/services/service_type_service.py`
+**Created** `backend/app/services/service_type_service.py`
 - `list_service_types(current_user, db, offset, limit)` — tenant_filter, eager load checklist_items
 - `get_service_type(id, current_user, db)` — single fetch with tenant filter
 - `create_service_type(body, current_user, db)` — check name uniqueness within tenant, create with checklist items
@@ -69,7 +68,7 @@ Run `alembic revision --autogenerate -m "add service types"`
 
 ### 1.5 API Router
 
-**Create** `backend/app/api/service_types.py` — prefix `/service-types`
+**Created** `backend/app/api/service_types.py` — prefix `/service-types`
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/service-types` | any auth | List all |
@@ -79,44 +78,44 @@ Run `alembic revision --autogenerate -m "add service types"`
 | PUT | `/service-types/{id}/checklist` | admin+ | Replace checklist |
 | DELETE | `/service-types/{id}` | admin+ | Soft delete |
 
-**Modify** `backend/app/main.py` — register router
+**Modified** `backend/app/main.py` — registered router
 
 ---
 
-## Phase 2: Service Types (Frontend)
+## Phase 2: Service Types (Frontend) ✅
 
 ### 2.1 Types, Service, Hooks
 
-**Create** `frontend/src/types/serviceType.ts` — ServiceType, ChecklistItem, payloads
-**Modify** `frontend/src/types/index.ts` — add re-exports
-**Create** `frontend/src/services/serviceType.service.ts` — CRUD + updateChecklist
-**Create** `frontend/src/hooks/useServiceTypes.ts` — query key `["service-types"]`, all CRUD hooks
+**Created** `frontend/src/types/serviceType.ts` — ServiceType, ChecklistItem, payloads
+**Modified** `frontend/src/types/index.ts` — added re-exports
+**Created** `frontend/src/services/serviceType.service.ts` — CRUD + updateChecklist
+**Created** `frontend/src/hooks/useServiceTypes.ts` — list key `["service-types"]`, detail key `["service-type"]`, all CRUD hooks. Uses `skipToken` for conditional detail query.
 
 ### 2.2 Schemas
 
-**Modify** `frontend/src/lib/schemas.ts` — add `createServiceTypeSchema`, `editServiceTypeSchema`, `checklistItemSchema`
+**Modified** `frontend/src/lib/schemas.ts` — added `createServiceTypeSchema`, `editServiceTypeSchema`, `checklistItemSchema`
 
 ### 2.3 Pages
 
-**Create** `frontend/src/pages/service-types/ServiceTypesPage.tsx` — DataTable with columns: Name, Base Price, Duration, Status badge, Actions
-**Create** `frontend/src/pages/service-types/ServiceTypeColumns.tsx`
-**Create** `frontend/src/pages/service-types/CreateServiceTypeDialog.tsx`
-**Create** `frontend/src/pages/service-types/EditServiceTypeDialog.tsx`
-**Create** `frontend/src/pages/service-types/DeleteServiceTypeDialog.tsx`
-**Create** `frontend/src/pages/service-types/ChecklistEditor.tsx` — dialog to manage checklist items (add/remove/reorder)
+**Created** `frontend/src/pages/service-types/ServiceTypesPage.tsx` — DataTable with columns: Name, Base Price, Duration, Status badge, Actions
+**Created** `frontend/src/pages/service-types/ServiceTypeColumns.tsx`
+**Created** `frontend/src/pages/service-types/CreateServiceTypeDialog.tsx`
+**Created** `frontend/src/pages/service-types/EditServiceTypeDialog.tsx`
+**Created** `frontend/src/pages/service-types/DeleteServiceTypeDialog.tsx`
+**Created** `frontend/src/pages/service-types/ChecklistEditor.tsx` — dialog to manage checklist items (add/remove/reorder)
 
 ### 2.4 Routing
 
-**Modify** `frontend/src/App.tsx` — add `/service-types` route (PrivateRoute)
-**Modify** `frontend/src/components/Layout.tsx` — add nav item with `ClipboardList` icon, visible to all roles
+**Modified** `frontend/src/App.tsx` — added `/service-types` route (PrivateRoute)
+**Modified** `frontend/src/components/Layout.tsx` — added nav item with `ClipboardList` icon, visible to all roles
 
 ---
 
-## Phase 3: Clients & Properties (Backend)
+## Phase 3: Clients & Properties (Backend) ✅
 
 ### 3.1 Models
 
-**Create** `backend/app/database/models/client.py`
+**Created** `backend/app/database/models/client.py`
 ```
 Client(Base, AuditMixin, TenantMixin):
   id: UUID (PK)
@@ -130,7 +129,7 @@ Client(Base, AuditMixin, TenantMixin):
   → properties: relationship
 ```
 
-**Create** `backend/app/database/models/property.py`
+**Created** `backend/app/database/models/property.py`
 ```
 PropertyType(str, Enum): house, apartment, building, commercial
 
@@ -154,79 +153,119 @@ Property(Base, AuditMixin, TenantMixin):
 - `parent_property_id` — apartments can be linked to any property type except other apartments (validated in service layer)
 - `address` is optional
 
-**Modify** `backend/app/database/models/__init__.py`
+**Modified** `backend/app/database/models/__init__.py`
 
 ### 3.2 Migration
 
-Run `alembic revision --autogenerate -m "add clients and properties"`
+Created migration for `clients` and `properties` tables
 
 ### 3.3 DTOs
 
-**Create** `backend/app/dto/client.py`
+**Created** `backend/app/dto/client.py`
 - `CreateClientRequest`, `UpdateClientRequest`, `ClientResponse` (includes `property_count`)
 
-**Create** `backend/app/dto/property.py`
-- `CreatePropertyRequest(client_id?, parent_property_id?, property_type, name, address?, city?, notes?)`
+**Created** `backend/app/dto/property.py`
+- `CreatePropertyRequest(client_id?, parent_property_id?, property_type, name, address?, city?, notes?, number_of_apartments?)` — `number_of_apartments` triggers auto-creation of N apartments when type=building
 - `UpdatePropertyRequest(client_id?, parent_property_id?, property_type?, name?, address?, city?, notes?, is_active?)`
-- `PropertySummaryResponse` — lightweight for child property listings
+- `PropertySummaryResponse` — lightweight for child property listings, includes `client_name` and `is_active`
 - `PropertyResponse` — full details with `child_properties: list[PropertySummaryResponse]`, `client_name`, and `parent_property_name`
 
 ### 3.4 Services
 
-**Create** `backend/app/services/client_service.py`
+**Created** `backend/app/services/client_service.py`
 - Standard CRUD with tenant_filter
 - `list_clients` includes property_count subquery
 - `delete_client` also soft-deletes all associated properties
 
-**Create** `backend/app/services/property_service.py`
-- `list_properties(... client_id?, property_type?, parent_property_id?)` — filterable, eager loads client + parent_property + child_properties
+**Created** `backend/app/services/property_service.py`
+- `list_properties(... client_id?, property_type?, parent_property_id?, parents_only?)` — filterable, eager loads client + parent_property + child_properties. `parents_only=true` returns only properties with no parent.
 - `get_property` — single fetch with tenant filter, eager loads all relationships
-- `create_property` — validates client belongs to tenant (if provided); validates parent exists and is not an apartment (if provided)
-- `update_property` — partial update, same validations as create for client/parent changes
+- `create_property` — validates client belongs to tenant (if provided); validates parent exists and is not an apartment (if provided). When `number_of_apartments` is set and type=building, atomically creates N apartment child properties (named "Apartment 1", "Apartment 2", etc.) inheriting address, city, and client_id from the building.
+- `update_property` — partial update, uses `model_fields_set` to distinguish "field not sent" from "field sent as null" for `client_id` and `parent_property_id` (allows unlinking)
 - `delete_property` — also soft-deletes child properties (apartments in a building)
 
 ### 3.5 API Routers
 
-**Create** `backend/app/api/clients.py` — prefix `/clients`, standard CRUD (any auth for read, admin+ for write)
-**Create** `backend/app/api/properties.py` — prefix `/properties`, CRUD + query param filters
+**Created** `backend/app/api/clients.py` — prefix `/clients`, standard CRUD (any auth for read, admin+ for write)
+**Created** `backend/app/api/properties.py` — prefix `/properties`, CRUD + query param filters
 
-**Modify** `backend/app/main.py` — register both routers
+**Modified** `backend/app/main.py` — registered both routers
 
 ---
 
-## Phase 4: Clients & Properties (Frontend)
+## Phase 4: Clients & Properties (Frontend) ✅
 
 ### 4.1 Types, Services, Hooks
 
-**Create** `frontend/src/types/client.ts`, `frontend/src/types/property.ts`
-**Modify** `frontend/src/types/index.ts`
-**Create** `frontend/src/services/client.service.ts`, `frontend/src/services/property.service.ts`
-**Create** `frontend/src/hooks/useClients.ts` (key: `["clients"]`), `frontend/src/hooks/useProperties.ts` (key: `["properties"]`)
+**Created** `frontend/src/types/client.ts`, `frontend/src/types/property.ts`
+- `PropertySummary` includes `client_name: string | null` and `is_active: boolean`
+- `PropertyCreatePayload` includes `number_of_apartments?: number`
+- `PropertyUpdatePayload` has `client_id?: string | null` and `parent_property_id?: string | null` (allows sending explicit null to unlink)
+
+**Modified** `frontend/src/types/index.ts`
+**Created** `frontend/src/services/client.service.ts`, `frontend/src/services/property.service.ts`
+**Created** `frontend/src/hooks/useClients.ts` (list key: `["clients"]`, detail key: `["client"]`), `frontend/src/hooks/useProperties.ts` (list key: `["properties"]`, detail key: `["property"]`)
+
+**TanStack Query patterns established:**
+- Detail queries use separate key namespace from list queries to prevent `invalidateQueries` conflicts with `skipToken`
+- Detail queries use `skipToken` (not `enabled: !!id`) for conditional fetching
+- Mutations invalidate both list and detail keys on update; only list key on delete
 
 ### 4.2 Schemas
 
-**Modify** `frontend/src/lib/schemas.ts` — add client/property schemas
+**Modified** `frontend/src/lib/schemas.ts` — added client/property schemas
+- `createPropertySchema` — default type is `"building"`, includes `number_of_apartments` (optional int 1-100)
+- `editPropertySchema` — includes `is_active: boolean`
 
 ### 4.3 Pages — Clients
 
-**Create** `frontend/src/pages/clients/ClientsPage.tsx` — columns: Name, Email, Phone, Properties (count badge), Status, Actions
-**Create** `frontend/src/pages/clients/ClientColumns.tsx`
-**Create** `frontend/src/pages/clients/CreateClientDialog.tsx`
-**Create** `frontend/src/pages/clients/EditClientDialog.tsx`
-**Create** `frontend/src/pages/clients/DeleteClientDialog.tsx`
+**Created** `frontend/src/pages/clients/ClientsPage.tsx` — columns: Name, Email, Phone, Properties (count badge), Status, Actions
+**Created** `frontend/src/pages/clients/ClientColumns.tsx`
+**Created** `frontend/src/pages/clients/CreateClientDialog.tsx`
+**Created** `frontend/src/pages/clients/EditClientDialog.tsx`
+**Created** `frontend/src/pages/clients/DeleteClientDialog.tsx`
 
 ### 4.4 Pages — Properties
 
-**Create** `frontend/src/pages/properties/PropertiesPage.tsx` — columns: Name, Type badge, Client, Part of, Address, Status, Actions. Filter dropdowns for client and property type.
-**Create** `frontend/src/pages/properties/PropertyColumns.tsx`
-**Create** `frontend/src/pages/properties/CreatePropertyDialog.tsx` — optional client dropdown ("No client" default), property type selector. When type=apartment: show "Part of" dropdown listing all non-apartment properties ("None" default).
-**Create** `frontend/src/pages/properties/EditPropertyDialog.tsx` — same fields as create + is_active toggle. "Part of" dropdown shown for apartments, excludes current property and apartments.
-**Create** `frontend/src/pages/properties/DeletePropertyDialog.tsx`
+**Created** `frontend/src/pages/properties/PropertiesPage.tsx`
+- Columns: Expand chevron, Name, Type badge, Client, Address, Status badge, Actions
+- Always fetches with `parents_only: true` — child apartments shown as expandable sub-rows
+- Filter dropdowns for property type and client
+- Uses TanStack Table `getExpandedRowModel` with `getRowCanExpand` based on `child_properties.length`
+- `renderExpandedRows` renders child properties as actual `<TableRow>` elements (not colSpan) for column alignment, with indented name, type badge, client name, address, status badge, and Edit/Delete action dropdown
+- Uses `<Fragment key={row.id}>` in DataTable for expandable row support
+
+**Created** `frontend/src/pages/properties/PropertyColumns.tsx`
+- First column is expand/collapse chevron button (ChevronRight with rotate-90 transition)
+- Callbacks pass IDs (not full objects): `onEdit: (id: string) => void`
+
+**Created** `frontend/src/pages/properties/CreatePropertyDialog.tsx`
+- Default type is "building" (not "house")
+- When type=building: shows number input for apartment count + info message that apartments will be auto-created
+- When type=apartment: shows "Part of" dropdown (half-width grid) + info message
+- Uses `useWatch` for conditional rendering based on property type (avoids Radix `flushSync` issues with `form.watch`)
+
+**Created** `frontend/src/pages/properties/EditPropertyDialog.tsx`
+- Accepts `propertyId: string | null` and uses `usePropertyQuery(propertyId)` internally (not a full Property object)
+- Uses `useWatch` for `property_type` conditional rendering
+- All field values use `?? ""` / `?? "none"` / `?? true` fallbacks to prevent uncontrolled→controlled warnings during Radix Select's `flushSync` re-renders
+- "Part of" dropdown shown only for apartments, in half-width grid with info message
+- `is_active` switch in single-column grid
+- On submit: `parent_property_id` is set to null when type is not "apartment" (prevents orphaned parent links when changing type)
+- Sends explicit `null` (not `undefined`) for `client_id` and `parent_property_id` when "None" selected (allows unlinking)
+
+**Created** `frontend/src/pages/properties/DeletePropertyDialog.tsx`
+- Accepts `propertyId: string | null` and uses `usePropertyQuery(propertyId)` internally
+- Shows warning about child property cascade deletion
+
+**Modified** `frontend/src/components/DataTable.tsx`
+- Added `renderExpandedRows?: (row: Row<T>) => ReactNode` prop
+- Uses `<Fragment key={row.id}>` to wrap row + expanded content
 
 ### 4.5 Routing
 
-**Modify** `frontend/src/App.tsx` — add `/clients` and `/properties` routes
-**Modify** `frontend/src/components/Layout.tsx` — add nav items: "Clients" (Users2 icon), "Properties" (Home icon)
+**Modified** `frontend/src/App.tsx` — added `/clients` and `/properties` routes
+**Modified** `frontend/src/components/Layout.tsx` — added nav items: "Clients" (Users2 icon), "Properties" (Home icon)
 
 ---
 

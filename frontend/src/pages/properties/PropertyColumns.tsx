@@ -1,5 +1,5 @@
 import { createColumnHelper } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+import { ChevronRight, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,12 +20,31 @@ const typeLabels: Record<string, string> = {
 };
 
 interface PropertyColumnCallbacks {
-  onEdit: (prop: Property) => void;
-  onDelete: (prop: Property) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 export function getPropertyColumns({ onEdit, onDelete }: PropertyColumnCallbacks) {
   return [
+    columnHelper.display({
+      id: "expand",
+      header: "",
+      size: 32,
+      cell: ({ row }) => {
+        if (!row.original.child_properties?.length) return null;
+        return (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => row.toggleExpanded()}
+          >
+            <ChevronRight
+              className={`size-4 transition-transform ${row.getIsExpanded() ? "rotate-90" : ""}`}
+            />
+          </Button>
+        );
+      },
+    }),
     columnHelper.accessor("name", {
       header: "Name",
       cell: (info) => info.getValue(),
@@ -38,12 +57,6 @@ export function getPropertyColumns({ onEdit, onDelete }: PropertyColumnCallbacks
     }),
     columnHelper.accessor("client_name", {
       header: "Client",
-      cell: (info) => (
-        <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>
-      ),
-    }),
-    columnHelper.accessor("parent_property_name", {
-      header: "Part of",
       cell: (info) => (
         <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>
       ),
@@ -75,12 +88,12 @@ export function getPropertyColumns({ onEdit, onDelete }: PropertyColumnCallbacks
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(row.original)}>
+            <DropdownMenuItem onClick={() => onEdit(row.original.id)}>
               Edit
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              onClick={() => onDelete(row.original)}
+              onClick={() => onDelete(row.original.id)}
             >
               Delete
             </DropdownMenuItem>

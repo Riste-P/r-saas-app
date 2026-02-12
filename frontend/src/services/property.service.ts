@@ -10,6 +10,7 @@ export async function getProperties(params?: {
   client_id?: string;
   property_type?: string;
   parent_property_id?: string;
+  parents_only?: boolean;
 }): Promise<PaginatedResponse<Property>> {
   const res = await api.get<PaginatedResponse<Property>>("/properties", { params });
   return res.data;

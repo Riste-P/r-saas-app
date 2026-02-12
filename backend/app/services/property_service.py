@@ -25,6 +25,7 @@ async def list_properties(
     client_id: UUID | None = None,
     property_type: PropertyType | None = None,
     parent_property_id: UUID | None = None,
+    parents_only: bool = False,
 ) -> tuple[list[Property], int]:
     base = (
         select(Property)
@@ -39,6 +40,8 @@ async def list_properties(
         base = base.where(Property.property_type == property_type)
     if parent_property_id is not None:
         base = base.where(Property.parent_property_id == parent_property_id)
+    if parents_only:
+        base = base.where(Property.parent_property_id.is_(None))
 
     count_result = await db.execute(select(func.count()).select_from(base.subquery()))
     total = count_result.scalar_one()
@@ -96,6 +99,12 @@ async def create_property(
         if parent.property_type == PropertyType.apartment:
             raise AppError("INVALID_PARENT", "An apartment cannot be part of another apartment")
 
+    if body.number_of_apartments and body.property_type != PropertyType.building:
+        raise AppError(
+            "INVALID_APARTMENT_COUNT",
+            "Number of apartments can only be specified for building properties",
+        )
+
     prop = Property(
         client_id=body.client_id,
         parent_property_id=body.parent_property_id,
@@ -107,6 +116,22 @@ async def create_property(
         tenant_id=current_user.tenant_id,
     )
     db.add(prop)
+    await db.flush()
+
+    if body.number_of_apartments and body.property_type == PropertyType.building:
+        for i in range(1, body.number_of_apartments + 1):
+            apartment = Property(
+                client_id=body.client_id,
+                parent_property_id=prop.id,
+                property_type=PropertyType.apartment,
+                name=f"Apartment {i}",
+                address=body.address,
+                city=body.city,
+                notes=None,
+                tenant_id=current_user.tenant_id,
+            )
+            db.add(apartment)
+
     await db.commit()
 
     logger.info("Property created id=%s by=%s", prop.id, current_user.id)
@@ -121,19 +146,24 @@ async def update_property(
 ) -> Property:
     prop = await get_property(property_id, current_user, db)
 
-    if body.client_id is not None and body.client_id != prop.client_id:
-        client_query = select(Client).where(
-            Client.id == body.client_id,
-            Client.deleted_at.is_(None),
-        )
-        client_query = tenant_filter(client_query, current_user, Client.tenant_id)
-        client_result = await db.execute(client_query)
-        if not client_result.scalar_one_or_none():
-            raise NotFoundError("CLIENT_NOT_FOUND", "Client not found")
-        prop.client_id = body.client_id
+    if "client_id" in body.model_fields_set:
+        if body.client_id is None:
+            prop.client_id = None
+        elif body.client_id != prop.client_id:
+            client_query = select(Client).where(
+                Client.id == body.client_id,
+                Client.deleted_at.is_(None),
+            )
+            client_query = tenant_filter(client_query, current_user, Client.tenant_id)
+            client_result = await db.execute(client_query)
+            if not client_result.scalar_one_or_none():
+                raise NotFoundError("CLIENT_NOT_FOUND", "Client not found")
+            prop.client_id = body.client_id
 
-    if body.parent_property_id is not None:
-        if body.parent_property_id != prop.parent_property_id:
+    if "parent_property_id" in body.model_fields_set:
+        if body.parent_property_id is None:
+            prop.parent_property_id = None
+        elif body.parent_property_id != prop.parent_property_id:
             parent_query = select(Property).where(
                 Property.id == body.parent_property_id,
                 Property.deleted_at.is_(None),

@@ -1,18 +1,18 @@
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { useDeleteProperty } from "@/hooks/useProperties";
-import type { Property } from "@/types";
+import { useDeleteProperty, usePropertyQuery } from "@/hooks/useProperties";
 
 interface DeletePropertyDialogProps {
-  property: Property | null;
+  propertyId: string | null;
   onClose: () => void;
 }
 
-export function DeletePropertyDialog({ property, onClose }: DeletePropertyDialogProps) {
+export function DeletePropertyDialog({ propertyId, onClose }: DeletePropertyDialogProps) {
+  const { data: property } = usePropertyQuery(propertyId);
   const deleteMutation = useDeleteProperty({ onSuccess: onClose });
 
   return (
     <ConfirmDeleteDialog
-      open={property !== null}
+      open={propertyId !== null}
       onOpenChange={(open) => { if (!open) onClose(); }}
       title="Delete Property"
       description={
@@ -24,7 +24,7 @@ export function DeletePropertyDialog({ property, onClose }: DeletePropertyDialog
         </>
       }
       isPending={deleteMutation.isPending}
-      onConfirm={() => { if (property) deleteMutation.mutate(property.id); }}
+      onConfirm={() => { if (propertyId) deleteMutation.mutate(propertyId); }}
     />
   );
 }

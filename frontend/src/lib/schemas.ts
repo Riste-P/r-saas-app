@@ -113,6 +113,7 @@ export const createPropertySchema = z.object({
   address: z.string().max(500).optional().or(z.literal("")),
   city: z.string().max(100).optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
+  number_of_apartments: z.number().int().min(1, "Minimum 1 apartment").max(100, "Maximum 100 apartments").optional(),
 });
 export type CreatePropertyFormValues = z.infer<typeof createPropertySchema>;
 

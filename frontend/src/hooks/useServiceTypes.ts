@@ -1,10 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, skipToken } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getApiError } from "@/lib/errors";
 import * as serviceTypeService from "@/services/serviceType.service";
 import type { ServiceTypeCreatePayload, ServiceTypeUpdatePayload, ChecklistUpdatePayload } from "@/types";
 
 const SERVICE_TYPES_KEY = ["service-types"] as const;
+const SERVICE_TYPE_DETAIL_KEY = ["service-type"] as const;
 
 export function useServiceTypesQuery() {
   return useQuery({
@@ -16,9 +17,8 @@ export function useServiceTypesQuery() {
 
 export function useServiceTypeQuery(id: string | null) {
   return useQuery({
-    queryKey: [...SERVICE_TYPES_KEY, id],
-    queryFn: () => serviceTypeService.getServiceType(id!),
-    enabled: !!id,
+    queryKey: [...SERVICE_TYPE_DETAIL_KEY, id],
+    queryFn: id ? () => serviceTypeService.getServiceType(id) : skipToken,
   });
 }
 
@@ -42,6 +42,7 @@ export function useUpdateServiceType(opts?: { onSuccess?: () => void }) {
       serviceTypeService.updateServiceType(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SERVICE_TYPES_KEY });
+      qc.invalidateQueries({ queryKey: SERVICE_TYPE_DETAIL_KEY });
       toast.success("Service type updated successfully");
       opts?.onSuccess?.();
     },
@@ -56,6 +57,7 @@ export function useUpdateChecklist(opts?: { onSuccess?: () => void }) {
       serviceTypeService.updateChecklist(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SERVICE_TYPES_KEY });
+      qc.invalidateQueries({ queryKey: SERVICE_TYPE_DETAIL_KEY });
       toast.success("Checklist updated successfully");
       opts?.onSuccess?.();
     },

@@ -1,6 +1,14 @@
 import { useState, useMemo } from "react";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, getExpandedRowModel, useReactTable } from "@tanstack/react-table";
+import { MoreHorizontal } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -8,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TableRow, TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/DataTable";
 import { usePropertiesQuery } from "@/hooks/useProperties";
 import { useClientsQuery } from "@/hooks/useClients";
@@ -15,23 +24,30 @@ import { getPropertyColumns } from "./PropertyColumns";
 import { CreatePropertyDialog } from "./CreatePropertyDialog";
 import { EditPropertyDialog } from "./EditPropertyDialog";
 import { DeletePropertyDialog } from "./DeletePropertyDialog";
-import type { Property } from "@/types";
+
+const typeLabels: Record<string, string> = {
+  house: "House",
+  apartment: "Apartment",
+  building: "Building",
+  commercial: "Commercial",
+};
 
 export default function PropertiesPage() {
   const [createOpen, setCreateOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Property | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
-  const [filterClient, setFilterClient] = useState<string>("");
+  const [editTargetId, setEditTargetId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("");
+  const [filterClient, setFilterClient] = useState<string>("");
 
   const { data: clients = [] } = useClientsQuery();
   const { data: properties = [], isLoading } = usePropertiesQuery({
-    client_id: filterClient && filterClient !== "all" ? filterClient : undefined,
     property_type: filterType && filterType !== "all" ? filterType : undefined,
+    client_id: filterClient && filterClient !== "all" ? filterClient : undefined,
+    parents_only: true,
   });
 
   const columns = useMemo(
-    () => getPropertyColumns({ onEdit: setEditTarget, onDelete: setDeleteTarget }),
+    () => getPropertyColumns({ onEdit: setEditTargetId, onDelete: setDeleteTargetId }),
     []
   );
 
@@ -39,6 +55,8 @@ export default function PropertiesPage() {
     data: properties,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getRowCanExpand: (row) => (row.original.child_properties?.length ?? 0) > 0,
   });
 
   if (isLoading) {
@@ -57,18 +75,7 @@ export default function PropertiesPage() {
         <Button onClick={() => setCreateOpen(true)}>Create Property</Button>
       </div>
 
-      <div className="mt-4 flex gap-3">
-        <Select value={filterClient} onValueChange={setFilterClient}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Clients" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Clients</SelectItem>
-            {clients.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mt-4 flex items-center gap-3">
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="All Types" />
@@ -81,17 +88,68 @@ export default function PropertiesPage() {
             <SelectItem value="commercial">Commercial</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterClient} onValueChange={setFilterClient}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All Clients" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Clients</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
         table={table}
         columnCount={columns.length}
         emptyMessage="No properties found."
+        renderExpandedRows={(row) => {
+          const children = row.original.child_properties;
+          if (!children?.length) return null;
+          return children.map((child) => (
+            <TableRow key={child.id} className="bg-muted/50">
+              <TableCell />
+              <TableCell className="pl-8">{child.name}</TableCell>
+              <TableCell>
+                <Badge variant="outline">{typeLabels[child.property_type]}</Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{child.client_name ?? "—"}</TableCell>
+              <TableCell className="text-muted-foreground">{child.address ?? "—"}</TableCell>
+              <TableCell>
+                <Badge variant={child.is_active ? "default" : "secondary"}>
+                  {child.is_active ? "Active" : "Inactive"}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon-xs">
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditTargetId(child.id)}>
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setDeleteTargetId(child.id)}
+                    >
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ));
+        }}
       />
 
       <CreatePropertyDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <EditPropertyDialog property={editTarget} onClose={() => setEditTarget(null)} />
-      <DeletePropertyDialog property={deleteTarget} onClose={() => setDeleteTarget(null)} />
+      <EditPropertyDialog propertyId={editTargetId} onClose={() => setEditTargetId(null)} />
+      <DeletePropertyDialog propertyId={deleteTargetId} onClose={() => setDeleteTargetId(null)} />
     </div>
   );
 }

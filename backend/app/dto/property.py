@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database.models.property import PropertyType
 
@@ -20,6 +20,7 @@ class CreatePropertyRequest(BaseModel):
     address: str | None = None
     city: str | None = None
     notes: str | None = None
+    number_of_apartments: int | None = Field(None, ge=1, le=100)
 
 
 class UpdatePropertyRequest(BaseModel):
@@ -38,6 +39,8 @@ class PropertySummaryResponse(BaseModel):
     name: str
     property_type: PropertyType
     address: str | None
+    client_name: str | None
+    is_active: bool
 
     @classmethod
     def from_entity(cls, prop: Property) -> PropertySummaryResponse:
@@ -46,6 +49,8 @@ class PropertySummaryResponse(BaseModel):
             name=prop.name,
             property_type=prop.property_type,
             address=prop.address,
+            client_name=prop.client.name if prop.client else None,
+            is_active=prop.is_active,
         )
 
 

@@ -25,6 +25,7 @@ async def list_properties(
     client_id: UUID | None = Query(None),
     property_type: PropertyType | None = Query(None),
     parent_property_id: UUID | None = Query(None),
+    parents_only: bool = Query(False),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -36,6 +37,7 @@ async def list_properties(
         client_id=client_id,
         property_type=property_type,
         parent_property_id=parent_property_id,
+        parents_only=parents_only,
     )
     return PaginatedResponse(
         items=[PropertyResponse.from_entity(prop) for prop in items],
