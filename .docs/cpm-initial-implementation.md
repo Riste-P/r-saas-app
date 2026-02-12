@@ -269,6 +269,33 @@ Created migration for `clients` and `properties` tables
 
 ---
 
+## Phase 4b: Properties Card View & Bug Fix ✅
+
+### 4b.1 Card View
+
+**Created** `frontend/src/pages/properties/PropertyCardView.tsx`
+- `PropertyCardView` — responsive grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`) of property cards
+- `PropertyCard` — shows property type icon (Home/Building/Building2/Store from lucide-react), name, type badge, address/city with MapPin icon, client name with User icon, status as subtle dot (emerald for active, gray for inactive) + text
+- Collapsible children section using Radix `Collapsible` — shows apartment count, expands to list children with name, client name, and actions menu. Inactive children shown with muted + strikethrough name
+- `ActionsMenu` — shared edit/delete dropdown used by both parent cards and child rows
+- Empty state: centered "No properties found." matching DataTable style
+
+**Modified** `frontend/src/pages/properties/PropertiesPage.tsx`
+- Added `ViewMode` type (`"card" | "table"`) with localStorage persistence (`properties-view-mode` key)
+- Default view is card (when no localStorage value exists)
+- View toggle: `LayoutGrid` and `List` icon buttons after filters, pushed right with `ml-auto`. Active button uses `variant="secondary"`, inactive uses `variant="ghost"`
+- Conditional rendering: `PropertyCardView` for card mode, existing `DataTable` for table mode
+- Both views share the same data, filters, and create/edit/delete dialogs
+
+### 4b.2 Backend Bug Fix
+
+**Modified** `backend/app/services/property_service.py`
+- Fixed `MissingGreenlet` error caused by lazy loading `client` relationship on child properties
+- Added chained eager load: `selectinload(Property.child_properties).selectinload(Property.client)` in both `list_properties` and `get_property` queries
+- Previously, `PropertySummaryResponse.from_entity(child)` accessed `prop.client` on child properties that were only loaded via `selectinload(Property.child_properties)` without their own `client` relationship being eager-loaded
+
+---
+
 ## Phase 5: Billing & Payments (Backend)
 
 ### 5.1 Models

@@ -29,7 +29,11 @@ async def list_properties(
 ) -> tuple[list[Property], int]:
     base = (
         select(Property)
-        .options(selectinload(Property.client), selectinload(Property.parent_property), selectinload(Property.child_properties))
+        .options(
+            selectinload(Property.client),
+            selectinload(Property.parent_property),
+            selectinload(Property.child_properties).selectinload(Property.client),
+        )
         .where(Property.deleted_at.is_(None))
     )
     base = tenant_filter(base, current_user, Property.tenant_id)
@@ -56,7 +60,11 @@ async def get_property(
 ) -> Property:
     query = (
         select(Property)
-        .options(selectinload(Property.client), selectinload(Property.parent_property), selectinload(Property.child_properties))
+        .options(
+            selectinload(Property.client),
+            selectinload(Property.parent_property),
+            selectinload(Property.child_properties).selectinload(Property.client),
+        )
         .where(Property.id == property_id, Property.deleted_at.is_(None))
     )
     query = tenant_filter(query, current_user, Property.tenant_id)

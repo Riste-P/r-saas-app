@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { getCoreRowModel, getExpandedRowModel, useReactTable } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+import { LayoutGrid, List, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,10 @@ import { getPropertyColumns } from "./PropertyColumns";
 import { CreatePropertyDialog } from "./CreatePropertyDialog";
 import { EditPropertyDialog } from "./EditPropertyDialog";
 import { DeletePropertyDialog } from "./DeletePropertyDialog";
+import { PropertyCardView } from "./PropertyCardView";
+
+type ViewMode = "card" | "table";
+const VIEW_STORAGE_KEY = "properties-view-mode";
 
 const typeLabels: Record<string, string> = {
   house: "House",
@@ -38,6 +42,15 @@ export default function PropertiesPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("");
   const [filterClient, setFilterClient] = useState<string>("");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+    return stored === "table" ? "table" : "card";
+  });
+
+  function handleViewModeChange(mode: ViewMode) {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_STORAGE_KEY, mode);
+  }
 
   const { data: clients = [] } = useClientsQuery();
   const { data: properties = [], isLoading } = usePropertiesQuery({
@@ -99,53 +112,80 @@ export default function PropertiesPage() {
             ))}
           </SelectContent>
         </Select>
+
+        <div className="ml-auto flex items-center">
+          <Button
+            variant={viewMode === "card" ? "secondary" : "ghost"}
+            size="icon-sm"
+            onClick={() => handleViewModeChange("card")}
+            aria-label="Card view"
+          >
+            <LayoutGrid className="size-4" />
+          </Button>
+          <Button
+            variant={viewMode === "table" ? "secondary" : "ghost"}
+            size="icon-sm"
+            onClick={() => handleViewModeChange("table")}
+            aria-label="Table view"
+          >
+            <List className="size-4" />
+          </Button>
+        </div>
       </div>
 
-      <DataTable
-        table={table}
-        columnCount={columns.length}
-        emptyMessage="No properties found."
-        renderExpandedRows={(row) => {
-          const children = row.original.child_properties;
-          if (!children?.length) return null;
-          return children.map((child) => (
-            <TableRow key={child.id} className="bg-muted/50">
-              <TableCell />
-              <TableCell className="pl-8">{child.name}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{typeLabels[child.property_type]}</Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{child.client_name ?? "—"}</TableCell>
-              <TableCell className="text-muted-foreground">{child.address ?? "—"}</TableCell>
-              <TableCell>
-                <Badge variant={child.is_active ? "default" : "secondary"}>
-                  {child.is_active ? "Active" : "Inactive"}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-xs">
-                      <MoreHorizontal />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setEditTargetId(child.id)}>
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => setDeleteTargetId(child.id)}
-                    >
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ));
-        }}
-      />
+      {viewMode === "card" ? (
+        <PropertyCardView
+          properties={properties}
+          onEdit={setEditTargetId}
+          onDelete={setDeleteTargetId}
+        />
+      ) : (
+        <DataTable
+          table={table}
+          columnCount={columns.length}
+          emptyMessage="No properties found."
+          renderExpandedRows={(row) => {
+            const children = row.original.child_properties;
+            if (!children?.length) return null;
+            return children.map((child) => (
+              <TableRow key={child.id} className="bg-muted/50">
+                <TableCell />
+                <TableCell className="pl-8">{child.name}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">{typeLabels[child.property_type]}</Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{child.client_name ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{child.address ?? "—"}</TableCell>
+                <TableCell>
+                  <Badge variant={child.is_active ? "default" : "secondary"}>
+                    {child.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-xs">
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setEditTargetId(child.id)}>
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleteTargetId(child.id)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ));
+          }}
+        />
+      )}
 
       <CreatePropertyDialog open={createOpen} onOpenChange={setCreateOpen} />
       <EditPropertyDialog propertyId={editTargetId} onClose={() => setEditTargetId(null)} />
