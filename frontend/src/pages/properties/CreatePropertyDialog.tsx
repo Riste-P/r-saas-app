@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Dialog,
   DialogContent,
@@ -173,17 +174,18 @@ export function CreatePropertyDialog({ open, onOpenChange }: CreatePropertyDialo
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Client</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger className="w-full"><SelectValue placeholder="No client" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No client</SelectItem>
-                        {clients.filter((c) => c.is_active).map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={[
+                        { value: "none", label: "No client" },
+                        ...clients
+                          .filter((c) => c.is_active)
+                          .map((c) => ({ value: c.id, label: c.name })),
+                      ]}
+                      value={field.value ?? "none"}
+                      onValueChange={field.onChange}
+                      placeholder="No client"
+                      searchPlaceholder="Search clients..."
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -231,17 +233,18 @@ export function CreatePropertyDialog({ open, onOpenChange }: CreatePropertyDialo
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Part of</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger className="w-full"><SelectValue placeholder="None" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {allProperties.filter((p) => p.is_active && p.property_type !== "apartment").map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          options={[
+                            { value: "none", label: "None" },
+                            ...allProperties
+                              .filter((p) => p.is_active && p.property_type !== "apartment")
+                              .map((p) => ({ value: p.id, label: p.name })),
+                          ]}
+                          value={field.value ?? "none"}
+                          onValueChange={field.onChange}
+                          placeholder="None"
+                          searchPlaceholder="Search properties..."
+                        />
                         <FormMessage />
                       </FormItem>
                     )}

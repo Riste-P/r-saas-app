@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/DataTable";
 import { usePropertiesQuery } from "@/hooks/useProperties";
@@ -101,17 +102,17 @@ export default function PropertiesPage() {
             <SelectItem value="commercial">Commercial</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filterClient} onValueChange={setFilterClient}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Clients" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Clients</SelectItem>
-            {clients.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          options={[
+            { value: "all", label: "All Clients" },
+            ...clients.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+          value={filterClient || "all"}
+          onValueChange={setFilterClient}
+          placeholder="All Clients"
+          searchPlaceholder="Search clients..."
+          className="w-[200px]"
+        />
 
         <div className="ml-auto flex items-center">
           <Button
