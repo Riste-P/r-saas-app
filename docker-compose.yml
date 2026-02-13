@@ -30,6 +30,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/app:/app/app
+      - ./backend/scripts:/app/scripts
 
   frontend:
     build: ./frontend

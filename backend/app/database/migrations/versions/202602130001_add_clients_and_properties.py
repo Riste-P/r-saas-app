@@ -68,6 +68,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_properties_parent_property_id'), table_name='properties')
     op.drop_index(op.f('ix_properties_client_id'), table_name='properties')
     op.drop_table('properties')
+    sa.Enum(name='property_type_enum').drop(op.get_bind(), checkfirst=True)
     op.drop_index(op.f('ix_clients_tenant_id'), table_name='clients')
     op.drop_table('clients')
     # ### end Alembic commands ###
