@@ -2,7 +2,7 @@ import logging
 from uuid import UUID
 
 import jwt
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,7 +23,7 @@ async def authenticate(email: str, password: str, db: AsyncSession) -> tuple[str
     result = await db.execute(
         select(User)
         .options(selectinload(User.tenant), selectinload(User.role))
-        .where(User.email == email)
+        .where(func.lower(User.email) == email.lower())
     )
     user = result.scalar_one_or_none()
 
