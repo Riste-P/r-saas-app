@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, skipToken } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getApiError } from "@/lib/errors";
 import * as tenantService from "@/services/tenant.service";
@@ -7,12 +7,11 @@ import type { TenantCreatePayload, TenantUpdatePayload, UserCreatePayload } from
 
 export const TENANTS_KEY = ["tenants"] as const;
 
-export function useTenantsQuery(enabled = true) {
+export function useTenantsQuery(load = true) {
   return useQuery({
     queryKey: TENANTS_KEY,
-    queryFn: tenantService.getTenants,
+    queryFn: load ? tenantService.getTenants : skipToken,
     select: (data) => data.items,
-    enabled,
   });
 }
 

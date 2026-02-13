@@ -1,4 +1,5 @@
-import type { Table as TanstackTable } from "@tanstack/react-table";
+import { Fragment, type ReactNode } from "react";
+import type { Row, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 import {
   Table,
@@ -13,12 +14,14 @@ interface DataTableProps<T> {
   table: TanstackTable<T>;
   columnCount: number;
   emptyMessage?: string;
+  renderExpandedRows?: (row: Row<T>) => ReactNode;
 }
 
 export function DataTable<T>({
   table,
   columnCount,
   emptyMessage = "No data found.",
+  renderExpandedRows,
 }: DataTableProps<T>) {
   return (
     <div className="mt-6 rounded-md border">
@@ -42,16 +45,19 @@ export function DataTable<T>({
         <TableBody>
           {table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(
-                      cell.column.columnDef.cell,
-                      cell.getContext()
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
+              <Fragment key={row.id}>
+                <TableRow>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                {renderExpandedRows && row.getIsExpanded() && renderExpandedRows(row)}
+              </Fragment>
             ))
           ) : (
             <TableRow>

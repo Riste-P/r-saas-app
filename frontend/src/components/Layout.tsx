@@ -38,39 +38,65 @@ export default function Layout() {
     navigate("/login", { replace: true });
   }
 
-  const visibleNav = navItems.filter(
-    (item) => item.roles === null || item.roles.includes(user?.role ?? "")
+  const mainNav = navItems.filter((item) => item.roles === null);
+  const adminNav = navItems.filter(
+    (item) => item.roles !== null && item.roles.includes(user?.role ?? "")
   );
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen">
       {/* Sidebar */}
       <aside className="flex w-56 flex-col border-r bg-sidebar text-sidebar-foreground">
-        <div className="flex h-14 items-center px-4">
+        <div className="flex h-14 items-center border-b px-4">
           <span className="text-lg font-semibold">SaaS App</span>
         </div>
-        <Separator />
-        <nav className="flex-1 space-y-1 p-3">
-          {visibleNav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                )
-              }
-            >
-              <item.icon className="size-4" />
-              {item.label}
-            </NavLink>
-          ))}
+        <nav className="flex-1 overflow-auto p-3">
+          <div className="space-y-1">
+            {mainNav.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                <item.icon className="size-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+          {adminNav.length > 0 && (
+            <>
+              <Separator className="my-3" />
+              <p className="mb-1 px-3 text-xs font-medium text-sidebar-foreground/50">Admin</p>
+              <div className="space-y-1">
+                {adminNav.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                      )
+                    }
+                  >
+                    <item.icon className="size-4" />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </>
+          )}
         </nav>
-        <Separator />
-        <div className="p-3">
+        <div className="border-t p-3">
           <Button
             variant="ghost"
             size="sm"
