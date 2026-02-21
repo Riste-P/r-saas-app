@@ -15,6 +15,7 @@ class AssignServiceRequest(BaseModel):
     property_id: UUID
     service_type_id: UUID
     custom_price: Decimal | None = None
+    is_active: bool = True
 
 
 class BulkAssignServicesRequest(BaseModel):
@@ -67,5 +68,6 @@ class EffectiveServiceResponse(BaseModel):
     service_type_id: UUID
     service_type_name: str
     effective_price: Decimal
+    is_active: bool
     is_inherited: bool
     override_id: UUID | None = None

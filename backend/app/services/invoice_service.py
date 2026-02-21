@@ -238,12 +238,13 @@ async def generate_invoices(
     created_invoices: list[Invoice] = []
 
     for target in targets:
-        # Resolve effective services for this property
-        effective = await property_service_type_service.get_effective_services(
+        # Resolve effective services for this property (filter out opted-out)
+        all_effective = await property_service_type_service.get_effective_services(
             target.id, current_user, db
         )
+        effective = [s for s in all_effective if s.is_active]
         if not effective:
-            continue  # Skip properties with no services
+            continue  # Skip properties with no active services
 
         invoice_number = await _next_invoice_number(current_user.tenant_id, db)
 

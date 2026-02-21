@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Property, PropertySummary, PropertyType } from "@/types";
 import type { LucideIcon } from "lucide-react";
+import { ServiceBadges } from "./ServiceBadges";
 
 const typeIcons: Record<PropertyType, LucideIcon> = {
   house: Home,
@@ -49,9 +50,10 @@ interface PropertyCardViewProps {
   properties: Property[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onManageServices: (id: string) => void;
 }
 
-export function PropertyCardView({ properties, onEdit, onDelete }: PropertyCardViewProps) {
+export function PropertyCardView({ properties, onEdit, onDelete, onManageServices }: PropertyCardViewProps) {
   if (properties.length === 0) {
     return (
       <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
@@ -68,6 +70,7 @@ export function PropertyCardView({ properties, onEdit, onDelete }: PropertyCardV
           property={property}
           onEdit={onEdit}
           onDelete={onDelete}
+          onManageServices={onManageServices}
         />
       ))}
     </div>
@@ -78,9 +81,10 @@ interface PropertyCardProps {
   property: Property;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onManageServices: (id: string) => void;
 }
 
-function PropertyCard({ property, onEdit, onDelete }: PropertyCardProps) {
+function PropertyCard({ property, onEdit, onDelete, onManageServices }: PropertyCardProps) {
   const [childrenOpen, setChildrenOpen] = useState(false);
   const TypeIcon = typeIcons[property.property_type];
   const hasChildren = property.child_properties.length > 0;
@@ -99,6 +103,7 @@ function PropertyCard({ property, onEdit, onDelete }: PropertyCardProps) {
           <ActionsMenu
             onEdit={() => onEdit(property.id)}
             onDelete={() => onDelete(property.id)}
+            onManageServices={() => onManageServices(property.id)}
           />
         </CardAction>
       </CardHeader>
@@ -121,6 +126,7 @@ function PropertyCard({ property, onEdit, onDelete }: PropertyCardProps) {
           )} />
           <span className="text-xs">{property.is_active ? "Active" : "Inactive"}</span>
         </div>
+        <ServiceBadges services={property.services} />
       </CardContent>
 
       {hasChildren && (
@@ -143,6 +149,7 @@ function PropertyCard({ property, onEdit, onDelete }: PropertyCardProps) {
                     child={child}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onManageServices={onManageServices}
                   />
                 ))}
               </div>
@@ -158,11 +165,12 @@ interface ChildRowProps {
   child: PropertySummary;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onManageServices: (id: string) => void;
 }
 
-function ChildRow({ child, onEdit, onDelete }: ChildRowProps) {
+function ChildRow({ child, onEdit, onDelete, onManageServices }: ChildRowProps) {
   return (
-    <div className="flex items-center justify-between py-1 pl-6 text-sm">
+    <div className="flex items-center justify-between gap-2 py-1 pl-6 text-sm">
       <div className="min-w-0 flex-1">
         <span className={cn("truncate", !child.is_active && "text-muted-foreground line-through")}>{child.name}</span>
         {child.client_name && (
@@ -170,16 +178,18 @@ function ChildRow({ child, onEdit, onDelete }: ChildRowProps) {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        <ServiceBadges services={child.services} />
         <ActionsMenu
           onEdit={() => onEdit(child.id)}
           onDelete={() => onDelete(child.id)}
+          onManageServices={() => onManageServices(child.id)}
         />
       </div>
     </div>
   );
 }
 
-function ActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function ActionsMenu({ onEdit, onDelete, onManageServices }: { onEdit: () => void; onDelete: () => void; onManageServices: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -189,6 +199,7 @@ function ActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+        <DropdownMenuItem onClick={onManageServices}>Manage Services</DropdownMenuItem>
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
           onClick={onDelete}

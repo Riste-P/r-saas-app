@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Property } from "@/types";
+import { ServiceBadges } from "./ServiceBadges";
 
 const columnHelper = createColumnHelper<Property>();
 
@@ -22,9 +23,10 @@ const typeLabels: Record<string, string> = {
 interface PropertyColumnCallbacks {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onManageServices: (id: string) => void;
 }
 
-export function getPropertyColumns({ onEdit, onDelete }: PropertyColumnCallbacks) {
+export function getPropertyColumns({ onEdit, onDelete, onManageServices }: PropertyColumnCallbacks) {
   return [
     columnHelper.display({
       id: "expand",
@@ -78,6 +80,11 @@ export function getPropertyColumns({ onEdit, onDelete }: PropertyColumnCallbacks
       ),
     }),
     columnHelper.display({
+      id: "services",
+      header: "Services",
+      cell: ({ row }) => <ServiceBadges services={row.original.services} />,
+    }),
+    columnHelper.display({
       id: "actions",
       header: "",
       cell: ({ row }) => (
@@ -90,6 +97,9 @@ export function getPropertyColumns({ onEdit, onDelete }: PropertyColumnCallbacks
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onEdit(row.original.id)}>
               Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onManageServices(row.original.id)}>
+              Manage Services
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"

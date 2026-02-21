@@ -80,11 +80,11 @@ async def get_effective_services(
 
     # Process parent services first (inherited)
     for pa in parent_assignments:
+        if not pa.is_active:
+            continue  # Parent deactivated this service entirely
         if pa.service_type_id in direct_by_st:
             # Child has an override for this service
             override = direct_by_st[pa.service_type_id]
-            if not override.is_active:
-                continue  # Child opted out
             eff_price = (
                 override.custom_price
                 if override.custom_price is not None
@@ -97,14 +97,13 @@ async def get_effective_services(
                     service_type_id=pa.service_type_id,
                     service_type_name=pa.service_type.name,
                     effective_price=eff_price,
+                    is_active=override.is_active,
                     is_inherited=True,
                     override_id=override.id,
                 )
             )
         else:
             # Inherited as-is from parent
-            if not pa.is_active:
-                continue
             eff_price = (
                 pa.custom_price
                 if pa.custom_price is not None
@@ -115,6 +114,7 @@ async def get_effective_services(
                     service_type_id=pa.service_type_id,
                     service_type_name=pa.service_type.name,
                     effective_price=eff_price,
+                    is_active=True,
                     is_inherited=True,
                     override_id=None,
                 )
@@ -124,8 +124,6 @@ async def get_effective_services(
     parent_st_ids = {pa.service_type_id for pa in parent_assignments}
     for da in direct:
         if da.service_type_id not in parent_st_ids:
-            if not da.is_active:
-                continue
             eff_price = (
                 da.custom_price
                 if da.custom_price is not None
@@ -136,6 +134,7 @@ async def get_effective_services(
                     service_type_id=da.service_type_id,
                     service_type_name=da.service_type.name,
                     effective_price=eff_price,
+                    is_active=da.is_active,
                     is_inherited=False,
                     override_id=da.id,
                 )
@@ -179,6 +178,7 @@ async def assign_service(
         property_id=body.property_id,
         service_type_id=body.service_type_id,
         custom_price=body.custom_price,
+        is_active=body.is_active,
         tenant_id=current_user.tenant_id,
     )
     db.add(pst)
@@ -290,6 +290,7 @@ async def remove_assignment(
 ) -> None:
     query = (
         select(PropertyServiceType)
+        .options(selectinload(PropertyServiceType.property))
         .where(
             PropertyServiceType.id == assignment_id,
             PropertyServiceType.deleted_at.is_(None),
@@ -301,9 +302,16 @@ async def remove_assignment(
     if not pst:
         raise NotFoundError("ASSIGNMENT_NOT_FOUND", "Service assignment not found")
 
-    now = datetime.now(timezone.utc)
-    pst.deleted_at = now
-    pst.updated_at = now
+    is_override = pst.property.parent_property_id is not None
+
+    if is_override:
+        # Hard delete overrides — they're lightweight and can be recreated
+        await db.delete(pst)
+    else:
+        # Soft delete direct assignments on parents
+        now = datetime.now(timezone.utc)
+        pst.deleted_at = now
+        pst.updated_at = now
 
     await db.commit()
-    logger.info("Assignment removed id=%s by=%s", assignment_id, current_user.id)
+    logger.info("Assignment removed id=%s override=%s by=%s", assignment_id, is_override, current_user.id)

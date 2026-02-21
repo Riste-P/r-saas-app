@@ -39,5 +39,5 @@ class PropertyServiceType(Base, AuditMixin, TenantMixin):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    property: Mapped["Property"] = relationship()
+    property: Mapped["Property"] = relationship(back_populates="service_assignments")
     service_type: Mapped["ServiceType"] = relationship()

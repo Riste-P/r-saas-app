@@ -10,6 +10,7 @@ from app.database.base import AuditMixin, Base, TenantMixin
 
 if TYPE_CHECKING:
     from app.database.models.client import Client
+    from app.database.models.property_service_type import PropertyServiceType
 
 
 class PropertyType(str, enum.Enum):
@@ -46,4 +47,7 @@ class Property(Base, AuditMixin, TenantMixin):
     )
     child_properties: Mapped[list["Property"]] = relationship(
         back_populates="parent_property"
+    )
+    service_assignments: Mapped[list["PropertyServiceType"]] = relationship(
+        back_populates="property"
     )

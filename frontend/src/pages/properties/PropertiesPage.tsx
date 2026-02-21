@@ -25,7 +25,9 @@ import { getPropertyColumns } from "./PropertyColumns";
 import { CreatePropertyDialog } from "./CreatePropertyDialog";
 import { EditPropertyDialog } from "./EditPropertyDialog";
 import { DeletePropertyDialog } from "./DeletePropertyDialog";
+import { ManageServicesDialog } from "./ManageServicesDialog";
 import { PropertyCardView } from "./PropertyCardView";
+import { ServiceBadges } from "./ServiceBadges";
 
 type ViewMode = "card" | "table";
 const VIEW_STORAGE_KEY = "properties-view-mode";
@@ -41,6 +43,7 @@ export default function PropertiesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [servicesTargetId, setServicesTargetId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("");
   const [filterClient, setFilterClient] = useState<string>("");
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -61,7 +64,7 @@ export default function PropertiesPage() {
   });
 
   const columns = useMemo(
-    () => getPropertyColumns({ onEdit: setEditTargetId, onDelete: setDeleteTargetId }),
+    () => getPropertyColumns({ onEdit: setEditTargetId, onDelete: setDeleteTargetId, onManageServices: setServicesTargetId }),
     []
   );
 
@@ -139,6 +142,7 @@ export default function PropertiesPage() {
           properties={properties}
           onEdit={setEditTargetId}
           onDelete={setDeleteTargetId}
+          onManageServices={setServicesTargetId}
         />
       ) : (
         <DataTable
@@ -163,6 +167,9 @@ export default function PropertiesPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
+                  <ServiceBadges services={child.services} />
+                </TableCell>
+                <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon-xs">
@@ -172,6 +179,9 @@ export default function PropertiesPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setEditTargetId(child.id)}>
                         Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setServicesTargetId(child.id)}>
+                        Manage Services
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
@@ -191,6 +201,7 @@ export default function PropertiesPage() {
       <CreatePropertyDialog open={createOpen} onOpenChange={setCreateOpen} />
       <EditPropertyDialog propertyId={editTargetId} onClose={() => setEditTargetId(null)} />
       <DeletePropertyDialog propertyId={deleteTargetId} onClose={() => setDeleteTargetId(null)} />
+      <ManageServicesDialog propertyId={servicesTargetId} onClose={() => setServicesTargetId(null)} />
     </div>
   );
 }

@@ -17,4 +17,12 @@ export type {
   PropertySummary,
   PropertyType,
   PropertyUpdatePayload,
+  ServiceBadge,
 } from "./property";
+export type {
+  AssignServicePayload,
+  BulkAssignServicesPayload,
+  EffectiveService,
+  PropertyServiceType,
+  UpdatePropertyServicePayload,
+} from "./propertyServiceType";

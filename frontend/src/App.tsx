@@ -2,6 +2,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { AdminRoute, PrivateRoute, PublicRoute, SuperAdminRoute } from "@/components/guards";
 import Layout from "@/components/Layout";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAccessToken } from "@/lib/api";
 import DashboardPage from "@/pages/DashboardPage";
 import LoginPage from "@/pages/LoginPage";
@@ -46,6 +47,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
         <BrowserRouter>
           <AuthInitializer>
             <Routes>
@@ -79,6 +81,7 @@ export default function App() {
             </Routes>
           </AuthInitializer>
         </BrowserRouter>
+        </TooltipProvider>
         <Toaster position="top-right" richColors />
       </QueryClientProvider>
     </ErrorBoundary>

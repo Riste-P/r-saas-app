@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import AppError, NotFoundError
 from app.database.models.client import Client
 from app.database.models.property import Property, PropertyType
+from app.database.models.property_service_type import PropertyServiceType
 from app.database.models.user import User
 from app.database.utils.common import tenant_filter
 from app.dto.property import CreatePropertyRequest, UpdatePropertyRequest
@@ -33,6 +34,11 @@ async def list_properties(
             selectinload(Property.client),
             selectinload(Property.parent_property),
             selectinload(Property.child_properties).selectinload(Property.client),
+            selectinload(Property.child_properties)
+                .selectinload(Property.service_assignments)
+                .selectinload(PropertyServiceType.service_type),
+            selectinload(Property.service_assignments)
+                .selectinload(PropertyServiceType.service_type),
         )
         .where(Property.deleted_at.is_(None))
     )
@@ -64,6 +70,11 @@ async def get_property(
             selectinload(Property.client),
             selectinload(Property.parent_property),
             selectinload(Property.child_properties).selectinload(Property.client),
+            selectinload(Property.child_properties)
+                .selectinload(Property.service_assignments)
+                .selectinload(PropertyServiceType.service_type),
+            selectinload(Property.service_assignments)
+                .selectinload(PropertyServiceType.service_type),
         )
         .where(Property.id == property_id, Property.deleted_at.is_(None))
     )
