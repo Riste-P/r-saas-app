@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Building2, ClipboardList, Users2, Home, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Building2, ClipboardList, Users2, Home, FileText, CreditCard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +18,8 @@ const navItems = [
   { to: "/service-types", label: "Service Types", icon: ClipboardList, roles: null },
   { to: "/clients", label: "Clients", icon: Users2, roles: null },
   { to: "/properties", label: "Properties", icon: Home, roles: null },
+  { to: "/invoices", label: "Invoices", icon: FileText, roles: null },
+  { to: "/payments", label: "Payments", icon: CreditCard, roles: null },
   {
     to: "/admin/users",
     label: "Users",

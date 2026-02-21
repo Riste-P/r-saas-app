@@ -128,3 +128,58 @@ export const editPropertySchema = z.object({
   is_active: z.boolean(),
 });
 export type EditPropertyFormValues = z.infer<typeof editPropertySchema>;
+
+// === Invoices ===
+export const invoiceItemSchema = z.object({
+  service_type_id: z.string().optional().or(z.literal("")),
+  description: z.string().min(1, "Description is required").max(500),
+  quantity: z.coerce.number().positive("Quantity must be positive"),
+  unit_price: z.coerce.number().min(0, "Price cannot be negative"),
+  sort_order: z.coerce.number().int().min(0).default(0),
+});
+
+export const createInvoiceSchema = z.object({
+  property_id: z.string().min(1, "Please select a property"),
+  issue_date: z.string().min(1, "Issue date is required"),
+  due_date: z.string().min(1, "Due date is required"),
+  period_start: z.string().optional().or(z.literal("")),
+  period_end: z.string().optional().or(z.literal("")),
+  discount: z.coerce.number().min(0).default(0),
+  tax: z.coerce.number().min(0).default(0),
+  notes: z.string().optional().or(z.literal("")),
+  items: z.array(invoiceItemSchema).min(1, "At least one line item is required"),
+});
+export type CreateInvoiceFormValues = z.infer<typeof createInvoiceSchema>;
+
+export const editInvoiceSchema = z.object({
+  status: z.string(),
+  issue_date: z.string().min(1, "Issue date is required"),
+  due_date: z.string().min(1, "Due date is required"),
+  discount: z.coerce.number().min(0).default(0),
+  tax: z.coerce.number().min(0).default(0),
+  notes: z.string().optional().or(z.literal("")),
+});
+export type EditInvoiceFormValues = z.infer<typeof editInvoiceSchema>;
+
+export const generateInvoicesSchema = z.object({
+  property_id: z.string().min(1, "Please select a property"),
+  issue_date: z.string().min(1, "Issue date is required"),
+  due_date: z.string().min(1, "Due date is required"),
+  period_start: z.string().optional().or(z.literal("")),
+  period_end: z.string().optional().or(z.literal("")),
+  discount: z.coerce.number().min(0).default(0),
+  tax: z.coerce.number().min(0).default(0),
+  notes: z.string().optional().or(z.literal("")),
+});
+export type GenerateInvoicesFormValues = z.infer<typeof generateInvoicesSchema>;
+
+// === Payments ===
+export const createPaymentSchema = z.object({
+  invoice_id: z.string().min(1, "Please select an invoice"),
+  amount: z.coerce.number().positive("Amount must be positive"),
+  payment_date: z.string().min(1, "Payment date is required"),
+  payment_method: z.string().min(1, "Please select a payment method"),
+  reference: z.string().max(255).optional().or(z.literal("")),
+  notes: z.string().optional().or(z.literal("")),
+});
+export type CreatePaymentFormValues = z.infer<typeof createPaymentSchema>;

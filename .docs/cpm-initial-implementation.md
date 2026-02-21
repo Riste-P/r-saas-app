@@ -302,6 +302,9 @@ Created migration for `clients` and `properties` tables
 
 - **Invoicing unit = "leaf" property**: If a property has children → each child gets invoiced. If no children → the property itself is invoiced. Works for all types (building+apartments, house+apartments, standalone house/commercial).
 - **Dynamic service inheritance**: Services assigned to parent properties via `PropertyServiceType` records. Children inherit at query time (no DB records on children). A child can have its own record to override price or opt out (`is_active=false`).
+- **Override deletion**: Child override records are hard deleted (lightweight, can be recreated). Parent direct assignments are soft deleted via `deleted_at` (standard pattern).
+- **Effective services include inactive**: `get_effective_services` returns all services including inactive ones (with `is_active` flag). This allows the UI to show inherited services with an off toggle rather than hiding them. Invoice generation filters out inactive services itself.
+- **Service badges embedded in property response**: Lightweight `ServiceBadge` data (service_type_name, effective_price, is_active) is computed from eager-loaded relationships and embedded in `PropertyResponse`/`PropertySummaryResponse`. Eliminates N+1 API calls for displaying badges.
 - **Price snapshot on invoice creation**: `InvoiceItem.unit_price` is frozen at creation time. Changing `ServiceType.base_price` or `PropertyServiceType.custom_price` only affects future invoices.
 - **Both periodic and ad-hoc invoicing**: Invoices have optional `period_start`/`period_end` for monthly billing, plus manual creation with custom line items.
 
@@ -316,9 +319,11 @@ PropertyServiceType(Base, AuditMixin, TenantMixin):
   custom_price: Numeric(10,2), nullable  — null = use ServiceType.base_price
   is_active: Boolean, default True       — false = opt out of inherited service
   Partial unique Index on (property_id, service_type_id) WHERE deleted_at IS NULL
-  → property: relationship
+  → property: relationship (back_populates="service_assignments")
   → service_type: relationship
 ```
+
+**Modified** `backend/app/database/models/property.py` — added `service_assignments` relationship to Property model
 
 **Modified** `backend/app/database/models/__init__.py` — added `PropertyServiceType`
 
@@ -331,22 +336,30 @@ PropertyServiceType(Base, AuditMixin, TenantMixin):
 ### 5a.3 DTOs
 
 **Created** `backend/app/dto/property_service_type.py`
-- `AssignServiceRequest(property_id, service_type_id, custom_price?)`
+- `AssignServiceRequest(property_id, service_type_id, custom_price?, is_active=True)` — is_active allows creating an override that opts out in one step
 - `BulkAssignServicesRequest(property_id, service_type_ids[])`
 - `UpdatePropertyServiceRequest(custom_price?, is_active?)` — uses `model_fields_set` for nullable custom_price
 - `PropertyServiceTypeResponse(id, property_id, service_type_id, service_type_name, custom_price, effective_price, is_active, is_inherited)` with `from_entity()`
-- `EffectiveServiceResponse(service_type_id, service_type_name, effective_price, is_inherited, override_id?)`
+- `EffectiveServiceResponse(service_type_id, service_type_name, effective_price, is_active, is_inherited, override_id?)` — includes is_active so UI can show toggle state
+
+**Modified** `backend/app/dto/property.py`
+- Added `ServiceBadgeItem(service_type_name, effective_price, is_active)` DTO
+- Added `_compute_service_badges(prop, parent_assignments?)` helper — computes effective service badges from eager-loaded relationships (parent + child override merge)
+- Added `services: list[ServiceBadgeItem]` field to both `PropertySummaryResponse` and `PropertyResponse`
+- `PropertyResponse.from_entity` passes own service_assignments as `parent_assignments` to child `PropertySummaryResponse.from_entity` for inheritance computation
 
 ### 5a.4 Service
 
 **Created** `backend/app/services/property_service_type_service.py`
 - `list_assignments(property_id, ...)` — direct assignments for a property
-- `get_effective_services(property_id, ...)` — **key method**: resolves inherited + direct services with effective prices
-  - Logic: get direct assignments → if property has parent, get parent's assignments → merge (child overrides parent) → filter out is_active=false → compute effective_price (custom_price ?? parent's custom_price ?? base_price)
-- `assign_service(body, ...)` — validate property + service_type, check for duplicates
+- `get_effective_services(property_id, ...)` — **key method**: resolves inherited + direct services with effective prices. Returns all services including inactive ones (with `is_active` flag)
+  - Logic: get direct assignments → if property has parent, get parent's assignments → merge (child overrides parent) → compute effective_price (custom_price ?? parent's custom_price ?? base_price)
+- `assign_service(body, ...)` — validate property + service_type, check for duplicates, uses `body.is_active`
 - `bulk_assign_services(body, ...)` — assign multiple services at once, skipping already-assigned
 - `update_assignment(id, body, ...)` — update custom_price or is_active
-- `remove_assignment(id, ...)` — soft delete
+- `remove_assignment(id, ...)` — **hard delete** for child override records (`db.delete()`), **soft delete** for parent direct assignments
+
+**Modified** `backend/app/services/property_service.py` — added eager loading of `service_assignments → service_type` in both `list_properties` and `get_property` (chained through child_properties too)
 
 ### 5a.5 API Router
 
@@ -373,11 +386,11 @@ PropertyServiceType(Base, AuditMixin, TenantMixin):
 
 ---
 
-## Phase 5b: Invoicing & Payments (Backend)
+## Phase 5b: Invoicing & Payments (Backend) ✅
 
 ### 5b.1 Models
 
-**Create** `backend/app/database/models/invoice.py`
+**Created** `backend/app/database/models/invoice.py`
 ```
 InvoiceStatus(str, Enum): draft, sent, paid, overdue, cancelled
 
@@ -402,7 +415,7 @@ Invoice(Base, AuditMixin, TenantMixin):
   UniqueConstraint(tenant_id, invoice_number) partial where deleted_at IS NULL
 ```
 
-**Create** `backend/app/database/models/invoice_item.py`
+**Created** `backend/app/database/models/invoice_item.py`
 ```
 InvoiceItem(Base, AuditMixin, TenantMixin):
   id: UUID PK
@@ -415,7 +428,7 @@ InvoiceItem(Base, AuditMixin, TenantMixin):
   sort_order: Integer, default 0
 ```
 
-**Create** `backend/app/database/models/payment.py`
+**Created** `backend/app/database/models/payment.py`
 ```
 PaymentMethod(str, Enum): cash, bank_transfer, card, other
 
@@ -430,15 +443,15 @@ Payment(Base, AuditMixin, TenantMixin):
   → invoice: relationship
 ```
 
-**Modify** `backend/app/database/models/__init__.py`
+**Modified** `backend/app/database/models/__init__.py` — added Invoice, InvoiceItem, Payment
 
 ### 5b.2 Migration
 
-Create `202602210002_add_invoices_and_payments.py`
+**Created** `backend/app/database/migrations/versions/202602210002_add_invoices_and_payments.py`
 
 ### 5b.3 DTOs
 
-**Create** `backend/app/dto/invoice.py`
+**Created** `backend/app/dto/invoice.py`
 - `InvoiceItemRequest(service_type_id?, description, quantity, unit_price, sort_order)`
 - `CreateInvoiceRequest(property_id, issue_date, due_date, period_start?, period_end?, discount?, tax?, notes?, items[])`
 - `UpdateInvoiceRequest(status?, issue_date?, due_date?, discount?, tax?, notes?, paid_date?)`
@@ -447,35 +460,35 @@ Create `202602210002_add_invoices_and_payments.py`
 - `InvoiceResponse` — full with items + payments + property_name + client_name
 - `InvoiceListResponse` — lightweight for list view (no items/payments)
 
-**Create** `backend/app/dto/payment.py`
+**Created** `backend/app/dto/payment.py`
 - `CreatePaymentRequest(invoice_id, amount, payment_date, payment_method, reference?, notes?)`
 - `UpdatePaymentRequest(amount?, payment_date?, payment_method?, reference?, notes?)`
 - `PaymentResponse` with `from_entity()`
 
 ### 5b.4 Services
 
-**Create** `backend/app/services/invoice_service.py`
+**Created** `backend/app/services/invoice_service.py`
 - `list_invoices(... status?, property_id?, client_id?)` — filterable, eager load property.client
 - `get_invoice(id, ...)` — eager load items, payments, property.client
 - `create_invoice(body, ...)` — auto-generate invoice_number (tenant-scoped sequential: INV-YYYYMM-0001), calc line totals, subtotal, total
 - `update_invoice(id, body, ...)` — partial update. Recalc total if discount/tax change
 - `generate_invoices(body, ...)` — **key method for batch generation**:
   1. Load property, check if it has children
-  2. If has children: for each active child, resolve effective services, create invoice with items
+  2. If has children: for each active child, resolve effective services (filters out inactive), create invoice with items
   3. If no children: resolve effective services for the property itself, create single invoice
   4. Each item snapshots effective price at this moment
   5. Return list of created invoices
 - `mark_overdue(db)` — batch: set status=overdue where status=sent and due_date < today
 - `delete_invoice(id, ...)` — soft delete, only allowed for draft/cancelled
 
-**Create** `backend/app/services/payment_service.py`
+**Created** `backend/app/services/payment_service.py`
 - `list_payments(... invoice_id?)` — with tenant_filter
 - `create_payment(body, ...)` — validate invoice belongs to tenant. Auto-set invoice status=paid + paid_date when total payments >= invoice total
 - `delete_payment(id, ...)` — soft delete, revert invoice from paid if total payments < invoice total after deletion
 
 ### 5b.5 API Routers
 
-**Create** `backend/app/api/invoices.py` — prefix `/invoices`
+**Created** `backend/app/api/invoices.py` — prefix `/invoices`
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/` | any auth | List (filters: status, property_id, client_id) |
@@ -486,82 +499,123 @@ Create `202602210002_add_invoices_and_payments.py`
 | DELETE | `/{id}` | admin+ | Soft delete (draft/cancelled only) |
 | POST | `/mark-overdue` | admin+ | Batch mark overdue |
 
-**Create** `backend/app/api/payments.py` — prefix `/payments`
+**Created** `backend/app/api/payments.py` — prefix `/payments`
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/` | any auth | List (filter: invoice_id) |
 | POST | `/` | admin+ | Record payment |
 | DELETE | `/{id}` | admin+ | Soft delete |
 
-**Modify** `backend/app/main.py` — register invoices + payments routers
+**Modified** `backend/app/main.py` — registered invoices + payments routers
 
 ---
 
-## Phase 5c: Property-Service Assignment (Frontend)
+## Phase 5c: Property-Service Assignment (Frontend) ✅
 
 ### 5c.1 Types, Services, Hooks
 
-**Create** `frontend/src/types/propertyServiceType.ts` — PropertyServiceType, EffectiveService, payloads
-**Create** `frontend/src/services/propertyServiceType.service.ts`
-**Create** `frontend/src/hooks/usePropertyServiceTypes.ts` — list, effective, assign, bulk assign, update, remove
+**Created** `frontend/src/types/propertyServiceType.ts` — PropertyServiceType, EffectiveService, AssignServicePayload, BulkAssignServicesPayload, UpdatePropertyServicePayload
+**Modified** `frontend/src/types/property.ts` — added `ServiceBadge` interface (`service_type_name`, `effective_price`, `is_active`), added `services: ServiceBadge[]` to both `Property` and `PropertySummary`
+**Modified** `frontend/src/types/index.ts` — added re-exports for propertyServiceType types and ServiceBadge
+**Created** `frontend/src/services/propertyServiceType.service.ts` — getAssignments, getEffectiveServices, assignService, bulkAssignServices, updateAssignment, removeAssignment
+**Created** `frontend/src/hooks/usePropertyServiceTypes.ts` — query keys `["property-service-types"]`, `["effective-services"]`. All mutations invalidate `["properties"]` key so embedded service badges auto-refresh
 
-### 5c.2 UI
+### 5c.2 UI — ManageServicesDialog
 
-Add a **"Manage Services"** action to the property actions menu:
-- Dialog shows effective services for the property (inherited + direct)
-- Inherited services shown with a badge/indicator
-- Admin can: assign new services, set custom price, deactivate an inherited service
-- For parent properties: manage which services are assigned
-- For children: shows inherited services + ability to override price or opt out
+**Created** `frontend/src/pages/properties/ManageServicesDialog.tsx`
+- Two modes based on property type:
+  - **Parent/standalone properties**: Shows `DirectServiceRow` components for direct assignments — custom price input, remove button. `AddServiceRow` at bottom via SearchableSelect
+  - **Child properties**: Shows `EffectiveServiceRow` components with inheritance badges ("Inherited" indicator), toggle switch to activate/deactivate inherited services (creates override with `is_active=false`), custom price override input
+- Uses both `usePropertyServiceTypesQuery` (for direct assignments/mutations) and `useEffectiveServicesQuery` (for display with inheritance)
 
-### 5c.3 Routing
+### 5c.3 UI — Service Badges
 
-No new routes — services management is part of the property UI.
+**Created** `frontend/src/pages/properties/ServiceBadges.tsx` — pure render component (no API calls), takes `services: ServiceBadge[]` prop. Shows abbreviated badges (first letters of each word, e.g. "RC" for Regular Cleaning) with tooltip on hover showing full name + effective price
+**Created** `frontend/src/components/ui/tooltip.tsx` — Radix Tooltip component (installed `@radix-ui/react-tooltip`)
+**Modified** `frontend/src/App.tsx` — wrapped app in `TooltipProvider`
+
+### 5c.4 Integration with Property Views
+
+**Modified** `frontend/src/pages/properties/PropertiesPage.tsx`
+- Added `servicesTargetId` state + `ManageServicesDialog`
+- "Manage Services" action in expanded child row dropdown menus
+- `ServiceBadges` in expanded child rows using `services={child.services}`
+
+**Modified** `frontend/src/pages/properties/PropertyColumns.tsx`
+- Added `onManageServices` callback, "Manage Services" dropdown item
+- "Services" column using `<ServiceBadges services={row.original.services} />`
+
+**Modified** `frontend/src/pages/properties/PropertyCardView.tsx`
+- Added `onManageServices` prop threaded through PropertyCardView → PropertyCard → ChildRow → ActionsMenu
+- `ServiceBadges` displayed in card content and child rows
+
+### 5c.5 Routing
+
+No new routes — services management is part of the property UI via dialog.
 
 ---
 
-## Phase 6: Invoicing & Payments (Frontend)
+## Phase 6: Invoicing & Payments (Frontend) ✅
 
 ### 6.1 Types, Services, Hooks
 
-**Create** types: `invoice.ts`, `payment.ts`
-**Modify** `types/index.ts`
-**Create** services: `invoice.service.ts`, `payment.service.ts`
-**Create** hooks: `useInvoices.ts`, `usePayments.ts`
+**Created** `frontend/src/types/invoice.ts` — InvoiceStatus, Invoice, InvoiceListItem (with `parent_property_name`), InvoiceItem, PaymentSummary, CreateInvoicePayload, UpdateInvoicePayload, GenerateInvoicesPayload
+**Created** `frontend/src/types/payment.ts`
+**Modified** `frontend/src/types/index.ts` — added re-exports
+**Created** `frontend/src/services/invoice.service.ts` — getInvoices (with search/status/property_id/client_id params), getInvoice, createInvoice, generateInvoices, updateInvoice, deleteInvoice, markOverdue, bulkUpdateStatus, bulkDelete
+**Created** `frontend/src/services/payment.service.ts`
+**Created** `frontend/src/hooks/useInvoices.ts` — list key `["invoices"]`, detail key `["invoice"]`. Hooks: useInvoicesQuery, useInvoiceQuery, useCreateInvoice, useGenerateInvoices, useUpdateInvoice, useDeleteInvoice, useBulkUpdateStatus, useBulkDeleteInvoices, useMarkOverdue
+**Created** `frontend/src/hooks/usePayments.ts`
 
 ### 6.2 Schemas
 
-**Modify** `frontend/src/lib/schemas.ts` — add invoice, payment, generate schemas
+**Modified** `frontend/src/lib/schemas.ts` — added invoice, payment, generate schemas
 
 ### 6.3 Pages — Invoices
 
-**Create** `frontend/src/pages/invoices/InvoicesPage.tsx` — columns: Invoice #, Client, Property, Status (color-coded badge), Total, Issue Date, Due Date, Actions. Filter dropdowns for status/property/client. "Mark Overdue" button for admins.
+**Created** `frontend/src/pages/invoices/InvoicesPage.tsx`
+- Columns: Checkbox (select), Invoice #, Client, Property, Parent, Status (color-coded badge), Total, Issue Date, Due Date, Actions
+- Filter bar: search input (debounced 300ms, server-side ilike on invoice_number), status dropdown, property dropdown (parents only — selecting a parent shows invoices for that property + all children), client dropdown (SearchableSelect)
+- Row selection via TanStack Table `enableRowSelection` with `getRowId` for stable IDs
+- Bulk actions toolbar: appears when rows selected — "N selected" count, Actions dropdown (Change Status sub-menu with all 5 statuses, Delete), clear selection button
+- Confirmation dialog (AlertDialog) before executing bulk operations, with destructive styling for delete
+- Bulk mutations use `Promise.allSettled` for partial failure handling — toast shows success/fail counts
+- Loading state is inline (only table area) to prevent filter bar unmounting and losing input focus
 
-Status badge colors: draft=gray, sent=blue, paid=green, overdue=red, cancelled=gray-outline
+**Created** `frontend/src/pages/invoices/InvoiceColumns.tsx` — checkbox column (header: select all with indeterminate, cell: select row), invoice number as clickable link, client (muted), property, parent property (muted, "—" when null), status badge (Draft=outline, Sent=default, Paid=emerald, Overdue=destructive, Cancelled=secondary), total, issue date, due date, actions dropdown (View, Edit, Delete for draft/cancelled)
+**Created** `frontend/src/pages/invoices/CreateInvoiceDialog.tsx` — property selector, dates, dynamic line items with service type auto-fill, auto-calculated totals
+**Created** `frontend/src/pages/invoices/GenerateInvoicesDialog.tsx` — select parent property, dates, generates invoices for children using effective services
+**Created** `frontend/src/pages/invoices/EditInvoiceDialog.tsx` — status, dates, discount, tax, notes
+**Created** `frontend/src/pages/invoices/DeleteInvoiceDialog.tsx` — only for draft/cancelled
+**Created** `frontend/src/pages/invoices/InvoiceDetailDialog.tsx` — read-only view with line items table + payments list + "Record Payment" button
 
-**Create** `frontend/src/pages/invoices/InvoiceColumns.tsx`
-**Create** `frontend/src/pages/invoices/CreateInvoiceDialog.tsx` — the most complex dialog:
-  - Property selector dropdown
-  - Issue date + due date, period start/end (optional)
-  - Dynamic line items: service type selector (auto-fills description + unit_price from effective price), description, quantity, unit_price. Add/remove rows.
-  - Auto-calculated subtotal, discount input, tax input, total (subtotal - discount + tax)
-  - Notes textarea
-**Create** `frontend/src/pages/invoices/GenerateInvoicesDialog.tsx` — select parent property, dates, preview which properties will be invoiced with their effective services, then generate
-**Create** `frontend/src/pages/invoices/EditInvoiceDialog.tsx` — status, dates, discount, tax, notes
-**Create** `frontend/src/pages/invoices/DeleteInvoiceDialog.tsx` — only for draft/cancelled
-**Create** `frontend/src/pages/invoices/InvoiceDetailDialog.tsx` — read-only view with line items table + payments list + "Record Payment" button
+**Created** `frontend/src/components/ui/checkbox.tsx` — shadcn Checkbox component (Radix-based), used for table row selection
 
 ### 6.4 Pages — Payments
 
-**Create** `frontend/src/pages/payments/PaymentsPage.tsx` — columns: Invoice #, Amount, Date, Method (badge), Reference, Actions
-**Create** `frontend/src/pages/payments/PaymentColumns.tsx`
-**Create** `frontend/src/pages/payments/CreatePaymentDialog.tsx` — invoice selector, amount, date, method, reference, notes
-**Create** `frontend/src/pages/payments/DeletePaymentDialog.tsx`
+**Created** `frontend/src/pages/payments/PaymentsPage.tsx` — columns: Invoice #, Amount, Date, Method (badge), Reference, Actions
+**Created** `frontend/src/pages/payments/PaymentColumns.tsx`
+**Created** `frontend/src/pages/payments/CreatePaymentDialog.tsx` — invoice selector, amount, date, method, reference, notes
+**Created** `frontend/src/pages/payments/DeletePaymentDialog.tsx`
 
 ### 6.5 Routing
 
-**Modify** `frontend/src/App.tsx` — add `/invoices` and `/payments` routes
-**Modify** `frontend/src/components/Layout.tsx` — add nav items: "Invoices" (FileText icon), "Payments" (CreditCard icon)
+**Modified** `frontend/src/App.tsx` — added `/invoices` and `/payments` routes
+**Modified** `frontend/src/components/Layout.tsx` — added nav items: "Invoices" (FileText icon), "Payments" (CreditCard icon)
+
+### 6.6 Backend Enhancements (done alongside frontend)
+
+**Modified** `backend/app/services/invoice_service.py`
+- Invoice number generation uses issue date (not `now()`) for the `YYYYMM` prefix — allows creating future-dated invoices with correct numbering
+- List invoices sorted by `invoice_number` desc (was `created_at` desc)
+- Added `search` parameter — `ilike` filter on `invoice_number`
+- Property filter now includes child properties: `OR(property_id = X, property_id IN (children of X))` — selecting a parent in the dropdown shows all its children's invoices too
+- Added eager load for `property.parent_property` in list query
+
+**Modified** `backend/app/api/invoices.py` — added `search` query parameter
+
+**Modified** `backend/app/dto/invoice.py`
+- `InvoiceListResponse` — added `parent_property_name: str | None` field, populated from `inv.property.parent_property.name`
 
 ---
 

@@ -149,6 +149,7 @@ class InvoiceListResponse(BaseModel):
     id: UUID
     property_id: UUID
     property_name: str
+    parent_property_name: str | None
     client_name: str | None
     invoice_number: str
     status: str
@@ -160,10 +161,12 @@ class InvoiceListResponse(BaseModel):
 
     @classmethod
     def from_entity(cls, inv: Invoice) -> InvoiceListResponse:
+        parent = inv.property.parent_property
         return cls(
             id=inv.id,
             property_id=inv.property_id,
             property_name=inv.property.name,
+            parent_property_name=parent.name if parent else None,
             client_name=inv.property.client.name if inv.property.client else None,
             invoice_number=inv.invoice_number,
             status=inv.status.value,

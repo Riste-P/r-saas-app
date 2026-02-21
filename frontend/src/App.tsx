@@ -10,6 +10,8 @@ import TenantsPage from "@/pages/tenants/TenantsPage";
 import ClientsPage from "@/pages/clients/ClientsPage";
 import PropertiesPage from "@/pages/properties/PropertiesPage";
 import ServiceTypesPage from "@/pages/service-types/ServiceTypesPage";
+import InvoicesPage from "@/pages/invoices/InvoicesPage";
+import PaymentsPage from "@/pages/payments/PaymentsPage";
 import UsersPage from "@/pages/users/UsersPage";
 import { useAuthStore } from "@/stores/auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -63,6 +65,8 @@ export default function App() {
                   <Route path="/service-types" element={<ServiceTypesPage />} />
                   <Route path="/clients" element={<ClientsPage />} />
                   <Route path="/properties" element={<PropertiesPage />} />
+                  <Route path="/invoices" element={<InvoicesPage />} />
+                  <Route path="/payments" element={<PaymentsPage />} />
 
                   {/* Admin routes */}
                   <Route element={<AdminRoute />}>

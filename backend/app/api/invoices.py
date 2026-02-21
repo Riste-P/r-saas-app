@@ -27,6 +27,7 @@ async def list_invoices(
     status_filter: str | None = Query(None, alias="status"),
     property_id: UUID | None = Query(None),
     client_id: UUID | None = Query(None),
+    search: str | None = Query(None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -39,6 +40,7 @@ async def list_invoices(
         status=inv_status,
         property_id=property_id,
         client_id=client_id,
+        search=search,
     )
     return PaginatedResponse(
         items=[InvoiceListResponse.from_entity(inv) for inv in items],

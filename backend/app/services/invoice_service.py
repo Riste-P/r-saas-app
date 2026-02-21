@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -32,10 +32,9 @@ def _calc_totals(
     return subtotal, total
 
 
-async def _next_invoice_number(tenant_id: UUID, db: AsyncSession) -> str:
-    """Generate next invoice number: INV-YYYYMM-NNNN."""
-    now = datetime.now(timezone.utc)
-    prefix = f"INV-{now.strftime('%Y%m')}-"
+async def _next_invoice_number(tenant_id: UUID, issue_date: date, db: AsyncSession) -> str:
+    """Generate next invoice number: INV-YYYYMM-NNNN based on issue date."""
+    prefix = f"INV-{issue_date.strftime('%Y%m')}-"
 
     result = await db.execute(
         select(Invoice.invoice_number)
@@ -70,11 +69,13 @@ async def list_invoices(
     status: InvoiceStatus | None = None,
     property_id: UUID | None = None,
     client_id: UUID | None = None,
+    search: str | None = None,
 ) -> tuple[list[Invoice], int]:
     base = (
         select(Invoice)
         .options(
             selectinload(Invoice.property).selectinload(Property.client),
+            selectinload(Invoice.property).selectinload(Property.parent_property),
         )
         .where(Invoice.deleted_at.is_(None))
     )
@@ -83,14 +84,22 @@ async def list_invoices(
     if status is not None:
         base = base.where(Invoice.status == status)
     if property_id is not None:
-        base = base.where(Invoice.property_id == property_id)
+        child_ids = select(Property.id).where(
+            Property.parent_property_id == property_id,
+            Property.deleted_at.is_(None),
+        )
+        base = base.where(
+            or_(Invoice.property_id == property_id, Invoice.property_id.in_(child_ids))
+        )
     if client_id is not None:
         base = base.join(Invoice.property).where(Property.client_id == client_id)
+    if search:
+        base = base.where(Invoice.invoice_number.ilike(f"%{search}%"))
 
     count_result = await db.execute(select(func.count()).select_from(base.subquery()))
     total = count_result.scalar_one()
 
-    query = base.order_by(Invoice.created_at.desc()).offset(offset).limit(limit)
+    query = base.order_by(Invoice.invoice_number.desc()).offset(offset).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all()), total
 
@@ -124,7 +133,7 @@ async def create_invoice(
     if not prop_result.scalar_one_or_none():
         raise NotFoundError("PROPERTY_NOT_FOUND", "Property not found")
 
-    invoice_number = await _next_invoice_number(current_user.tenant_id, db)
+    invoice_number = await _next_invoice_number(current_user.tenant_id, body.issue_date, db)
 
     # Build items
     item_dicts = []
@@ -246,7 +255,7 @@ async def generate_invoices(
         if not effective:
             continue  # Skip properties with no active services
 
-        invoice_number = await _next_invoice_number(current_user.tenant_id, db)
+        invoice_number = await _next_invoice_number(current_user.tenant_id, body.issue_date, db)
 
         # Build line items from effective services
         item_dicts = []
