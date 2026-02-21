@@ -296,42 +296,122 @@ Created migration for `clients` and `properties` tables
 
 ---
 
-## Phase 5: Billing & Payments (Backend)
+## Phase 5a: Property-Service Assignment (Backend) ✅
 
-### 5.1 Models
+### Key Design Decisions
+
+- **Invoicing unit = "leaf" property**: If a property has children → each child gets invoiced. If no children → the property itself is invoiced. Works for all types (building+apartments, house+apartments, standalone house/commercial).
+- **Dynamic service inheritance**: Services assigned to parent properties via `PropertyServiceType` records. Children inherit at query time (no DB records on children). A child can have its own record to override price or opt out (`is_active=false`).
+- **Price snapshot on invoice creation**: `InvoiceItem.unit_price` is frozen at creation time. Changing `ServiceType.base_price` or `PropertyServiceType.custom_price` only affects future invoices.
+- **Both periodic and ad-hoc invoicing**: Invoices have optional `period_start`/`period_end` for monthly billing, plus manual creation with custom line items.
+
+### 5a.1 Model
+
+**Created** `backend/app/database/models/property_service_type.py`
+```
+PropertyServiceType(Base, AuditMixin, TenantMixin):
+  id: UUID PK
+  property_id: UUID FK → properties.id, indexed
+  service_type_id: UUID FK → service_types.id, indexed
+  custom_price: Numeric(10,2), nullable  — null = use ServiceType.base_price
+  is_active: Boolean, default True       — false = opt out of inherited service
+  Partial unique Index on (property_id, service_type_id) WHERE deleted_at IS NULL
+  → property: relationship
+  → service_type: relationship
+```
+
+**Modified** `backend/app/database/models/__init__.py` — added `PropertyServiceType`
+
+### 5a.2 Migration
+
+**Created** `backend/app/database/migrations/versions/202602210001_add_property_service_types.py`
+- `property_service_types` table with indexes on property_id, service_type_id, tenant_id
+- Partial unique index `uq_property_service_type_active`
+
+### 5a.3 DTOs
+
+**Created** `backend/app/dto/property_service_type.py`
+- `AssignServiceRequest(property_id, service_type_id, custom_price?)`
+- `BulkAssignServicesRequest(property_id, service_type_ids[])`
+- `UpdatePropertyServiceRequest(custom_price?, is_active?)` — uses `model_fields_set` for nullable custom_price
+- `PropertyServiceTypeResponse(id, property_id, service_type_id, service_type_name, custom_price, effective_price, is_active, is_inherited)` with `from_entity()`
+- `EffectiveServiceResponse(service_type_id, service_type_name, effective_price, is_inherited, override_id?)`
+
+### 5a.4 Service
+
+**Created** `backend/app/services/property_service_type_service.py`
+- `list_assignments(property_id, ...)` — direct assignments for a property
+- `get_effective_services(property_id, ...)` — **key method**: resolves inherited + direct services with effective prices
+  - Logic: get direct assignments → if property has parent, get parent's assignments → merge (child overrides parent) → filter out is_active=false → compute effective_price (custom_price ?? parent's custom_price ?? base_price)
+- `assign_service(body, ...)` — validate property + service_type, check for duplicates
+- `bulk_assign_services(body, ...)` — assign multiple services at once, skipping already-assigned
+- `update_assignment(id, body, ...)` — update custom_price or is_active
+- `remove_assignment(id, ...)` — soft delete
+
+### 5a.5 API Router
+
+**Created** `backend/app/api/property_service_types.py` — prefix `/property-service-types`
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| GET | `?property_id=X` | any auth | List direct assignments for a property |
+| GET | `/effective?property_id=X` | any auth | Get effective services (with inheritance) |
+| POST | `/` | admin+ | Assign service to property |
+| POST | `/bulk` | admin+ | Bulk assign services |
+| PATCH | `/{id}` | admin+ | Update assignment (custom_price, is_active) |
+| DELETE | `/{id}` | admin+ | Remove assignment |
+
+**Modified** `backend/app/main.py` — registered `property_service_types` router
+
+### 5a.6 Seed Data
+
+**Modified** `backend/scripts/seed.py` — added 23 property-service assignments:
+- Buildings 1–4, 6, 7 with various service combinations and custom prices
+- House with Regular + Deep + Window (custom price on window)
+- Commercial hotel with all 4 services at custom prices
+- Standalone apartment with Move-in/Move-out + Regular
+- 2 apartment-level overrides: Apt 1/Building 1 custom price ($95), Apt 2/Building 3 opts out of Carpet
+
+---
+
+## Phase 5b: Invoicing & Payments (Backend)
+
+### 5b.1 Models
 
 **Create** `backend/app/database/models/invoice.py`
 ```
 InvoiceStatus(str, Enum): draft, sent, paid, overdue, cancelled
 
 Invoice(Base, AuditMixin, TenantMixin):
-  id: UUID (PK)
+  id: UUID PK
   property_id: UUID FK → properties.id, indexed
-  invoice_number: String(50), unique
+  invoice_number: String(50)
   status: Enum(InvoiceStatus), default draft
+  period_start: Date, nullable    — for periodic invoices
+  period_end: Date, nullable      — for periodic invoices
   subtotal: Numeric(10,2), default 0
-  discount: Numeric(10,2), default 0          ← invoice-level discount
+  discount: Numeric(10,2), default 0
   tax: Numeric(10,2), default 0
-  total: Numeric(10,2), default 0             ← total = subtotal - discount + tax
+  total: Numeric(10,2), default 0
   issue_date: Date
   due_date: Date
   paid_date: Date, nullable
   notes: Text, nullable
   → property: relationship
-  → items: relationship, ordered by sort_order
+  → items: relationship (ordered by sort_order)
   → payments: relationship
+  UniqueConstraint(tenant_id, invoice_number) partial where deleted_at IS NULL
 ```
 
 **Create** `backend/app/database/models/invoice_item.py`
 ```
 InvoiceItem(Base, AuditMixin, TenantMixin):
-  id: UUID (PK)
+  id: UUID PK
   invoice_id: UUID FK → invoices.id, indexed
-  service_type_id: UUID FK → service_types.id, nullable
+  service_type_id: UUID FK → service_types.id, nullable  — null for ad-hoc items
   description: String(500)
   quantity: Numeric(8,2), default 1
-  unit_price: Numeric(10,2)
-  total: Numeric(10,2)
+  unit_price: Numeric(10,2)    — SNAPSHOTTED at creation time
+  total: Numeric(10,2)         — quantity * unit_price
   sort_order: Integer, default 0
 ```
 
@@ -340,7 +420,7 @@ InvoiceItem(Base, AuditMixin, TenantMixin):
 PaymentMethod(str, Enum): cash, bank_transfer, card, other
 
 Payment(Base, AuditMixin, TenantMixin):
-  id: UUID (PK)
+  id: UUID PK
   invoice_id: UUID FK → invoices.id, indexed
   amount: Numeric(10,2)
   payment_date: Date
@@ -349,103 +429,109 @@ Payment(Base, AuditMixin, TenantMixin):
   notes: Text, nullable
   → invoice: relationship
 ```
-Has TenantMixin — payments queried independently for reports.
-
-**Create** `backend/app/database/models/property_service_price.py`
-```
-PropertyServicePrice(Base, AuditMixin, TenantMixin):
-  id: UUID (PK)
-  property_id: UUID FK → properties.id, indexed
-  service_type_id: UUID FK → service_types.id, indexed
-  custom_price: Numeric(10,2)
-  UniqueConstraint(property_id, service_type_id)
-```
 
 **Modify** `backend/app/database/models/__init__.py`
 
-### 5.2 Migration
+### 5b.2 Migration
 
-Run `alembic revision --autogenerate -m "add billing and payments"`
+Create `202602210002_add_invoices_and_payments.py`
 
-### 5.3 DTOs
+### 5b.3 DTOs
 
 **Create** `backend/app/dto/invoice.py`
 - `InvoiceItemRequest(service_type_id?, description, quantity, unit_price, sort_order)`
-- `CreateInvoiceRequest(property_id, issue_date, due_date, discount?, tax, notes?, items[])`
+- `CreateInvoiceRequest(property_id, issue_date, due_date, period_start?, period_end?, discount?, tax?, notes?, items[])`
 - `UpdateInvoiceRequest(status?, issue_date?, due_date?, discount?, tax?, notes?, paid_date?)`
-- `InvoiceItemResponse`, `InvoiceResponse` (full with items + payments), `InvoiceListResponse` (lightweight for list view)
+- `GenerateInvoicesRequest(property_id, issue_date, due_date, period_start?, period_end?, discount?, tax?, notes?)` — batch generate for a parent's children using effective services
+- `InvoiceItemResponse` with `from_entity()`
+- `InvoiceResponse` — full with items + payments + property_name + client_name
+- `InvoiceListResponse` — lightweight for list view (no items/payments)
 
 **Create** `backend/app/dto/payment.py`
 - `CreatePaymentRequest(invoice_id, amount, payment_date, payment_method, reference?, notes?)`
-- `PaymentResponse`
+- `UpdatePaymentRequest(amount?, payment_date?, payment_method?, reference?, notes?)`
+- `PaymentResponse` with `from_entity()`
 
-**Create** `backend/app/dto/property_service_price.py`
-- `SetPropertyServicePriceRequest(property_id, service_type_id, custom_price)`
-- `PropertyServicePriceResponse`
-
-### 5.4 Services
+### 5b.4 Services
 
 **Create** `backend/app/services/invoice_service.py`
 - `list_invoices(... status?, property_id?, client_id?)` — filterable, eager load property.client
-- `get_invoice` — eager load items, payments, property.client
-- `create_invoice` — auto-generate invoice_number, calc line totals (qty * unit_price), subtotal, total (subtotal - discount + tax)
-- `update_invoice` — update status/dates/discount/tax/notes. Recalc total if discount or tax changes
+- `get_invoice(id, ...)` — eager load items, payments, property.client
+- `create_invoice(body, ...)` — auto-generate invoice_number (tenant-scoped sequential: INV-YYYYMM-0001), calc line totals, subtotal, total
+- `update_invoice(id, body, ...)` — partial update. Recalc total if discount/tax change
+- `generate_invoices(body, ...)` — **key method for batch generation**:
+  1. Load property, check if it has children
+  2. If has children: for each active child, resolve effective services, create invoice with items
+  3. If no children: resolve effective services for the property itself, create single invoice
+  4. Each item snapshots effective price at this moment
+  5. Return list of created invoices
 - `mark_overdue(db)` — batch: set status=overdue where status=sent and due_date < today
-- `delete_invoice` — only allowed for draft/cancelled invoices
+- `delete_invoice(id, ...)` — soft delete, only allowed for draft/cancelled
 
 **Create** `backend/app/services/payment_service.py`
 - `list_payments(... invoice_id?)` — with tenant_filter
-- `create_payment` — validates invoice belongs to tenant. If total payments >= invoice total, auto-set invoice status=paid + paid_date
-- `delete_payment` — soft delete, revert invoice from paid if needed
+- `create_payment(body, ...)` — validate invoice belongs to tenant. Auto-set invoice status=paid + paid_date when total payments >= invoice total
+- `delete_payment(id, ...)` — soft delete, revert invoice from paid if total payments < invoice total after deletion
 
-**Create** `backend/app/services/property_service_price_service.py`
-- `list_prices_for_property(property_id, ...)` — custom prices for a property
-- `set_price(body, ...)` — upsert: update if exists, create otherwise
-- `delete_price(id, ...)` — remove override (reverts to service type base_price)
-- `get_effective_price(property_id, service_type_id, ...)` — returns custom or base price
-
-### 5.5 API Routers
+### 5b.5 API Routers
 
 **Create** `backend/app/api/invoices.py` — prefix `/invoices`
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
-| GET | `/invoices` | any auth | List (filters: status, property_id, client_id) |
-| GET | `/invoices/{id}` | any auth | Get with items + payments |
-| POST | `/invoices` | admin+ | Create with line items |
-| PATCH | `/invoices/{id}` | admin+ | Update status/dates/tax |
-| DELETE | `/invoices/{id}` | admin+ | Soft delete (draft/cancelled only) |
-| POST | `/invoices/mark-overdue` | admin+ | Batch mark overdue |
+| GET | `/` | any auth | List (filters: status, property_id, client_id) |
+| GET | `/{id}` | any auth | Get with items + payments |
+| POST | `/` | admin+ | Create with line items |
+| POST | `/generate` | admin+ | Batch generate from effective services |
+| PATCH | `/{id}` | admin+ | Update status/dates/tax |
+| DELETE | `/{id}` | admin+ | Soft delete (draft/cancelled only) |
+| POST | `/mark-overdue` | admin+ | Batch mark overdue |
 
 **Create** `backend/app/api/payments.py` — prefix `/payments`
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
-| GET | `/payments` | any auth | List (filter: invoice_id) |
-| POST | `/payments` | admin+ | Record payment |
-| DELETE | `/payments/{id}` | admin+ | Soft delete |
+| GET | `/` | any auth | List (filter: invoice_id) |
+| POST | `/` | admin+ | Record payment |
+| DELETE | `/{id}` | admin+ | Soft delete |
 
-**Create** `backend/app/api/property_service_prices.py` — prefix `/property-service-prices`
-| Method | Path | Role | Description |
-|--------|------|------|-------------|
-| GET | `/property-service-prices` | any auth | List for property (query: property_id) |
-| POST | `/property-service-prices` | admin+ | Set/update price |
-| DELETE | `/property-service-prices/{id}` | admin+ | Remove override |
-
-**Modify** `backend/app/main.py` — register all three routers
+**Modify** `backend/app/main.py` — register invoices + payments routers
 
 ---
 
-## Phase 6: Billing & Payments (Frontend)
+## Phase 5c: Property-Service Assignment (Frontend)
+
+### 5c.1 Types, Services, Hooks
+
+**Create** `frontend/src/types/propertyServiceType.ts` — PropertyServiceType, EffectiveService, payloads
+**Create** `frontend/src/services/propertyServiceType.service.ts`
+**Create** `frontend/src/hooks/usePropertyServiceTypes.ts` — list, effective, assign, bulk assign, update, remove
+
+### 5c.2 UI
+
+Add a **"Manage Services"** action to the property actions menu:
+- Dialog shows effective services for the property (inherited + direct)
+- Inherited services shown with a badge/indicator
+- Admin can: assign new services, set custom price, deactivate an inherited service
+- For parent properties: manage which services are assigned
+- For children: shows inherited services + ability to override price or opt out
+
+### 5c.3 Routing
+
+No new routes — services management is part of the property UI.
+
+---
+
+## Phase 6: Invoicing & Payments (Frontend)
 
 ### 6.1 Types, Services, Hooks
 
-**Create** types: `invoice.ts`, `payment.ts`, `propertyServicePrice.ts`
+**Create** types: `invoice.ts`, `payment.ts`
 **Modify** `types/index.ts`
-**Create** services: `invoice.service.ts`, `payment.service.ts`, `propertyServicePrice.service.ts`
-**Create** hooks: `useInvoices.ts`, `usePayments.ts`, `usePropertyServicePrices.ts`
+**Create** services: `invoice.service.ts`, `payment.service.ts`
+**Create** hooks: `useInvoices.ts`, `usePayments.ts`
 
 ### 6.2 Schemas
 
-**Modify** `frontend/src/lib/schemas.ts` — add invoice, payment, and pricing schemas
+**Modify** `frontend/src/lib/schemas.ts` — add invoice, payment, generate schemas
 
 ### 6.3 Pages — Invoices
 
@@ -456,10 +542,11 @@ Status badge colors: draft=gray, sent=blue, paid=green, overdue=red, cancelled=g
 **Create** `frontend/src/pages/invoices/InvoiceColumns.tsx`
 **Create** `frontend/src/pages/invoices/CreateInvoiceDialog.tsx` — the most complex dialog:
   - Property selector dropdown
-  - Issue date + due date
+  - Issue date + due date, period start/end (optional)
   - Dynamic line items: service type selector (auto-fills description + unit_price from effective price), description, quantity, unit_price. Add/remove rows.
   - Auto-calculated subtotal, discount input, tax input, total (subtotal - discount + tax)
   - Notes textarea
+**Create** `frontend/src/pages/invoices/GenerateInvoicesDialog.tsx` — select parent property, dates, preview which properties will be invoiced with their effective services, then generate
 **Create** `frontend/src/pages/invoices/EditInvoiceDialog.tsx` — status, dates, discount, tax, notes
 **Create** `frontend/src/pages/invoices/DeleteInvoiceDialog.tsx` — only for draft/cancelled
 **Create** `frontend/src/pages/invoices/InvoiceDetailDialog.tsx` — read-only view with line items table + payments list + "Record Payment" button
@@ -484,7 +571,7 @@ After each phase:
 1. **Backend**: `docker-compose --profile test up test --build` to run existing tests + verify no regressions
 2. **Backend**: Use `docker-compose up --build` and test endpoints manually via curl/browser DevTools
 3. **Frontend**: Check pages render, CRUD operations work, forms validate correctly
-4. **End-to-end after all phases**: Login → create service type with checklist → create client → create property (including building with apartments) → create invoice for property with line items → record payment → verify status auto-updates to paid → verify overdue flagging
+4. **End-to-end after all phases**: Login → assign services to a building → verify apartments inherit → generate invoices for building (creates one per apartment) → create manual invoice for standalone house → change service base_price → verify old invoices unchanged, new invoices use new price → record payment → verify auto-paid status → mark overdue → verify sent invoices past due_date get flagged
 
 ---
 
@@ -492,8 +579,10 @@ After each phase:
 
 - `backend/app/database/base.py` — Base, AuditMixin, TenantMixin
 - `backend/app/services/user_service.py` — service pattern (tenant_filter, soft delete, pagination tuple)
+- `backend/app/services/property_service_type_service.py` — effective services resolution pattern
 - `backend/app/api/users.py` — router pattern (CRUD, role guards, pagination, DTO mapping)
 - `backend/app/dto/user.py` — DTO pattern (from_entity, request/response split)
+- `backend/app/dto/property_service_type.py` — DTO pattern with computed fields (effective_price, is_inherited)
 - `frontend/src/pages/users/UsersPage.tsx` — page pattern (DataTable, dialog state, hooks)
 - `frontend/src/hooks/useUsers.ts` — hook pattern (query keys, mutations, toast, invalidation)
 - `frontend/src/lib/schemas.ts` — Zod schema patterns

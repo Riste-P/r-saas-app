@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api import auth, clients, dashboard, properties, service_types, tenants, users
+from app.api import auth, clients, dashboard, invoices, payments, properties, property_service_types, service_types, tenants, users
 from app.core.config import settings
 from app.database import get_db
 from app.core.exceptions import AppError, app_error_handler, unhandled_error_handler
@@ -31,6 +31,9 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(service_types.router, prefix="/api")
 app.include_router(clients.router, prefix="/api")
 app.include_router(properties.router, prefix="/api")
+app.include_router(property_service_types.router, prefix="/api")
+app.include_router(invoices.router, prefix="/api")
+app.include_router(payments.router, prefix="/api")
 
 
 @app.get("/health")

@@ -171,6 +171,56 @@ PROPERTIES.append({"id": _prop_id(10), "client_id": None, "parent_property_id": 
 # Merge parents + children (parents first so FK constraint is satisfied)
 ALL_PROPERTIES = PROPERTIES + _APT_ROWS
 
+# ---------------------------------------------------------------------------
+# Property-Service Type assignments
+# Assigns services to parent properties; children inherit dynamically.
+# ---------------------------------------------------------------------------
+_pst_counter = 0
+
+
+def _pst_id() -> uuid.UUID:
+    global _pst_counter
+    _pst_counter += 1
+    return uuid.UUID(f"40000000-0000-0000-0000-{_pst_counter:012d}")
+
+
+PROPERTY_SERVICE_TYPES = [
+    # Building 1 — Regular + Deep cleaning
+    {"id": _pst_id(), "property_id": _prop_id(1), "service_type_id": ST_REGULAR, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(1), "service_type_id": ST_DEEP, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    # Building 2 — Regular + Window cleaning
+    {"id": _pst_id(), "property_id": _prop_id(2), "service_type_id": ST_REGULAR, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(2), "service_type_id": ST_WINDOW, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    # Building 3 — Regular + Deep + Carpet (with custom price on regular)
+    {"id": _pst_id(), "property_id": _prop_id(3), "service_type_id": ST_REGULAR, "custom_price": 70.00, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(3), "service_type_id": ST_DEEP, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(3), "service_type_id": ST_CARPET, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    # Building 4 — Regular + Window
+    {"id": _pst_id(), "property_id": _prop_id(4), "service_type_id": ST_REGULAR, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(4), "service_type_id": ST_WINDOW, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    # Building 6 (office) — Regular + Deep
+    {"id": _pst_id(), "property_id": _prop_id(6), "service_type_id": ST_REGULAR, "custom_price": 100.00, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(6), "service_type_id": ST_DEEP, "custom_price": 200.00, "is_active": True, "tenant_id": TENANT_ID},
+    # Building 7 — Regular only
+    {"id": _pst_id(), "property_id": _prop_id(7), "service_type_id": ST_REGULAR, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    # House — Regular + Deep + Window
+    {"id": _pst_id(), "property_id": _prop_id(8), "service_type_id": ST_REGULAR, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(8), "service_type_id": ST_DEEP, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(8), "service_type_id": ST_WINDOW, "custom_price": 45.00, "is_active": True, "tenant_id": TENANT_ID},
+    # Commercial (hotel) — Regular + Deep + Carpet + Window
+    {"id": _pst_id(), "property_id": _prop_id(9), "service_type_id": ST_REGULAR, "custom_price": 150.00, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(9), "service_type_id": ST_DEEP, "custom_price": 350.00, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(9), "service_type_id": ST_CARPET, "custom_price": 200.00, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(9), "service_type_id": ST_WINDOW, "custom_price": 100.00, "is_active": True, "tenant_id": TENANT_ID},
+    # Standalone apartment — Move-in/Move-out + Regular
+    {"id": _pst_id(), "property_id": _prop_id(10), "service_type_id": ST_MOVEINOUT, "custom_price": None, "is_active": True, "tenant_id": TENANT_ID},
+    {"id": _pst_id(), "property_id": _prop_id(10), "service_type_id": ST_REGULAR, "custom_price": 50.00, "is_active": True, "tenant_id": TENANT_ID},
+    # Apartment-level override: Building 1 Apt 1 gets custom price for Regular
+    {"id": _pst_id(), "property_id": _apt_id(1, 1), "service_type_id": ST_REGULAR, "custom_price": 95.00, "is_active": True, "tenant_id": TENANT_ID},
+    # Apartment-level override: Building 3 Apt 2 opts out of Carpet cleaning
+    {"id": _pst_id(), "property_id": _apt_id(3, 2), "service_type_id": ST_CARPET, "custom_price": None, "is_active": False, "tenant_id": TENANT_ID},
+]
+
 
 # ---------------------------------------------------------------------------
 # Insert helpers
@@ -208,13 +258,17 @@ async def seed() -> None:
         print("Seeding properties...")
         await _insert_rows(session, "properties", ALL_PROPERTIES)
 
+        print("Seeding property-service assignments...")
+        await _insert_rows(session, "property_service_types", PROPERTY_SERVICE_TYPES)
+
         await session.commit()
 
         print(
             f"Done! Inserted {len(SERVICE_TYPES)} service types, "
             f"{len(CHECKLIST_ITEMS)} checklist items, "
             f"{len(CLIENTS)} clients, "
-            f"{len(ALL_PROPERTIES)} properties."
+            f"{len(ALL_PROPERTIES)} properties, "
+            f"{len(PROPERTY_SERVICE_TYPES)} property-service assignments."
         )
 
 
