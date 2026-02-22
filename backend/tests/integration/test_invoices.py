@@ -292,17 +292,17 @@ async def test_delete_sent_invoice_fails(auth_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_generate_invoices_for_building(auth_client: AsyncClient):
-    """Generate invoices creates one per active child apartment."""
+    """Generate invoices creates one per active child unit."""
     client = await _create_client(auth_client, "Generate Client")
     building = await _create_property(
         auth_client, client["id"], property_type="building", name="Gen Building", address="10 Gen St"
     )
     apt1 = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="Gen Apt 1",
+        auth_client, client["id"], property_type="unit", name="Gen Apt 1",
         address="10 Gen St, 1A", parent_property_id=building["id"],
     )
     apt2 = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="Gen Apt 2",
+        auth_client, client["id"], property_type="unit", name="Gen Apt 2",
         address="10 Gen St, 2B", parent_property_id=building["id"],
     )
 
@@ -357,11 +357,11 @@ async def test_generate_invoices_respects_child_opt_out(auth_client: AsyncClient
         auth_client, client["id"], property_type="building", name="Gen OptOut Building", address="5 St"
     )
     apt1 = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="Gen OptOut Apt 1",
+        auth_client, client["id"], property_type="unit", name="Gen OptOut Apt 1",
         address="5 St, 1A", parent_property_id=building["id"],
     )
     apt2 = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="Gen OptOut Apt 2",
+        auth_client, client["id"], property_type="unit", name="Gen OptOut Apt 2",
         address="5 St, 2B", parent_property_id=building["id"],
     )
 
@@ -390,7 +390,7 @@ async def test_generate_invoices_with_child_price_override(auth_client: AsyncCli
         auth_client, client["id"], property_type="building", name="Gen Override Building", address="6 St"
     )
     apt = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="Gen Override Apt",
+        auth_client, client["id"], property_type="unit", name="Gen Override Apt",
         address="6 St, 1A", parent_property_id=building["id"],
     )
 

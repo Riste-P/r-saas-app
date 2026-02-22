@@ -51,7 +51,7 @@ async def test_create_property(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_create_apartment_with_building(auth_client: AsyncClient):
+async def test_create_unit_with_building(auth_client: AsyncClient):
     client = await _create_client(auth_client, name="Building Client")
 
     # Create building
@@ -60,30 +60,30 @@ async def test_create_apartment_with_building(auth_client: AsyncClient):
         property_type="building", name="Tower A", address="10 High St",
     )
 
-    # Create apartment under building
-    apt = await _create_property(
+    # Create unit under building
+    unit = await _create_property(
         auth_client, client["id"],
-        property_type="apartment", name="Apt 1A", address="10 High St, 1A",
+        property_type="unit", name="Unit 1A", address="10 High St, 1A",
         parent_property_id=building["id"],
     )
-    assert apt["parent_property_id"] == building["id"]
-    assert apt["parent_property_name"] == "Tower A"
+    assert unit["parent_property_id"] == building["id"]
+    assert unit["parent_property_name"] == "Tower A"
 
-    # Building should list apartment as child
+    # Building should list unit as child
     resp = await auth_client.get(f"/api/properties/{building['id']}")
     assert resp.status_code == 200
     children = resp.json()["child_properties"]
     assert len(children) == 1
-    assert children[0]["name"] == "Apt 1A"
+    assert children[0]["name"] == "Unit 1A"
 
-    # Apartment can be linked to any property type (e.g. a house)
+    # Unit can be linked to any property type except unit (e.g. a house)
     house = await _create_property(
         auth_client, client["id"], name="A House", address="5 Low St",
     )
     resp = await auth_client.post("/api/properties", json={
         "client_id": client["id"],
-        "property_type": "apartment",
-        "name": "House Apt",
+        "property_type": "unit",
+        "name": "House Unit",
         "address": "5 Low St, 1A",
         "parent_property_id": house["id"],
     })
@@ -91,13 +91,23 @@ async def test_create_apartment_with_building(auth_client: AsyncClient):
     assert resp.json()["parent_property_id"] == house["id"]
     assert resp.json()["parent_property_name"] == "A House"
 
-    # Apartment cannot be part of another apartment
+    # Unit cannot be part of another unit
+    resp = await auth_client.post("/api/properties", json={
+        "client_id": client["id"],
+        "property_type": "unit",
+        "name": "Nested Unit",
+        "address": "10 High St, 2B",
+        "parent_property_id": unit["id"],
+    })
+    assert resp.status_code == 400
+
+    # Non-unit types cannot be children
     resp = await auth_client.post("/api/properties", json={
         "client_id": client["id"],
         "property_type": "apartment",
-        "name": "Nested Apt",
-        "address": "10 High St, 2B",
-        "parent_property_id": apt["id"],
+        "name": "Child Apt",
+        "address": "10 High St, 3C",
+        "parent_property_id": building["id"],
     })
     assert resp.status_code == 400
 
@@ -149,20 +159,20 @@ async def test_update_property(auth_client: AsyncClient):
 async def test_delete_property(auth_client: AsyncClient):
     client = await _create_client(auth_client, name="Delete Prop Client")
 
-    # Create building with apartment
+    # Create building with unit
     building = await _create_property(
         auth_client, client["id"],
         property_type="building", name="Del Tower", address="1 Del St",
     )
-    apt = await _create_property(
+    unit = await _create_property(
         auth_client, client["id"],
-        property_type="apartment", name="Del Apt", address="1 Del St, 1A",
+        property_type="unit", name="Del Unit", address="1 Del St, 1A",
         parent_property_id=building["id"],
     )
 
-    # Delete building should cascade to apartment
+    # Delete building should cascade to unit
     resp = await auth_client.delete(f"/api/properties/{building['id']}")
     assert resp.status_code == 204
 
     assert (await auth_client.get(f"/api/properties/{building['id']}")).status_code == 404
-    assert (await auth_client.get(f"/api/properties/{apt['id']}")).status_code == 404
+    assert (await auth_client.get(f"/api/properties/{unit['id']}")).status_code == 404

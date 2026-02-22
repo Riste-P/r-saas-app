@@ -18,6 +18,7 @@ class PropertyType(str, enum.Enum):
     apartment = "apartment"
     building = "building"
     commercial = "commercial"
+    unit = "unit"
 
 
 class Property(Base, AuditMixin, TenantMixin):

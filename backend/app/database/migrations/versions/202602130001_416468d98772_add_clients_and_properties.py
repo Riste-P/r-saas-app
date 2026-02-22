@@ -41,7 +41,7 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('client_id', sa.UUID(), nullable=True),
     sa.Column('parent_property_id', sa.UUID(), nullable=True),
-    sa.Column('property_type', sa.Enum('house', 'apartment', 'building', 'commercial', name='property_type_enum'), nullable=False),
+    sa.Column('property_type', sa.Enum('house', 'apartment', 'building', 'commercial', 'unit', name='property_type_enum'), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('address', sa.String(length=500), nullable=True),
     sa.Column('city', sa.String(length=100), nullable=True),

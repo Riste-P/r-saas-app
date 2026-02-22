@@ -18,15 +18,18 @@ const typeLabels: Record<string, string> = {
   apartment: "Apartment",
   building: "Building",
   commercial: "Commercial",
+  unit: "Unit",
 };
 
-interface PropertyColumnCallbacks {
+interface PropertyColumnOptions {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onManageServices: (id: string) => void;
+  onAddUnit: (id: string) => void;
+  showParent?: boolean;
 }
 
-export function getPropertyColumns({ onEdit, onDelete, onManageServices }: PropertyColumnCallbacks) {
+export function getPropertyColumns({ onEdit, onDelete, onManageServices, onAddUnit, showParent }: PropertyColumnOptions) {
   return [
     columnHelper.display({
       id: "expand",
@@ -63,6 +66,12 @@ export function getPropertyColumns({ onEdit, onDelete, onManageServices }: Prope
         <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>
       ),
     }),
+    ...(showParent ? [columnHelper.accessor("parent_property_name", {
+      header: "Parent",
+      cell: (info) => (
+        <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>
+      ),
+    })] : []),
     columnHelper.accessor("address", {
       header: "Address",
       cell: (info) => (
@@ -101,6 +110,11 @@ export function getPropertyColumns({ onEdit, onDelete, onManageServices }: Prope
             <DropdownMenuItem onClick={() => onManageServices(row.original.id)}>
               Manage Services
             </DropdownMenuItem>
+            {row.original.property_type !== "unit" && (
+              <DropdownMenuItem onClick={() => onAddUnit(row.original.id)}>
+                Add Unit
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => onDelete(row.original.id)}

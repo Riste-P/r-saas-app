@@ -76,9 +76,9 @@ export function CreatePropertyDialog({ open, onOpenChange }: CreatePropertyDialo
       address: values.address || undefined,
       city: values.city || undefined,
       notes: values.notes || undefined,
-      number_of_apartments:
-        values.property_type === "building" && values.number_of_apartments
-          ? values.number_of_apartments
+      number_of_units:
+        values.property_type === "building" && values.number_of_units
+          ? values.number_of_units
           : undefined,
     });
   }
@@ -162,6 +162,7 @@ export function CreatePropertyDialog({ open, onOpenChange }: CreatePropertyDialo
                         <SelectItem value="apartment">Apartment</SelectItem>
                         <SelectItem value="building">Building</SelectItem>
                         <SelectItem value="commercial">Commercial</SelectItem>
+                        <SelectItem value="unit">Unit</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -196,10 +197,10 @@ export function CreatePropertyDialog({ open, onOpenChange }: CreatePropertyDialo
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="number_of_apartments"
+                    name="number_of_units"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Number of Apartments</FormLabel>
+                        <FormLabel>Number of Units</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -220,11 +221,11 @@ export function CreatePropertyDialog({ open, onOpenChange }: CreatePropertyDialo
                 </div>
                 <p className="text-muted-foreground flex items-start gap-1.5 text-sm">
                   <Info className="mt-0.5 size-4 shrink-0" />
-                  Apartments will be auto-created and linked to this building with the same address and client.
+                  Units will be auto-created and linked to this building with the same address and client.
                 </p>
               </>
             )}
-            {propertyType === "apartment" && (
+            {propertyType === "unit" && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -237,7 +238,7 @@ export function CreatePropertyDialog({ open, onOpenChange }: CreatePropertyDialo
                           options={[
                             { value: "none", label: "None" },
                             ...allProperties
-                              .filter((p) => p.is_active && p.property_type !== "apartment")
+                              .filter((p) => p.is_active && p.property_type !== "unit")
                               .map((p) => ({ value: p.id, label: p.name })),
                           ]}
                           value={field.value ?? "none"}
@@ -252,7 +253,7 @@ export function CreatePropertyDialog({ open, onOpenChange }: CreatePropertyDialo
                 </div>
                 <p className="text-muted-foreground flex items-start gap-1.5 text-sm">
                   <Info className="mt-0.5 size-4 shrink-0" />
-                  Link this apartment to a building or property it belongs to.
+                  Link this unit to a building or property it belongs to.
                 </p>
               </>
             )}

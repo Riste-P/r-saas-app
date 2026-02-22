@@ -26,6 +26,7 @@ import { CreatePropertyDialog } from "./CreatePropertyDialog";
 import { EditPropertyDialog } from "./EditPropertyDialog";
 import { DeletePropertyDialog } from "./DeletePropertyDialog";
 import { ManageServicesDialog } from "./ManageServicesDialog";
+import { AddUnitDialog } from "./AddUnitDialog";
 import { PropertyCardView } from "./PropertyCardView";
 import { ServiceBadges } from "./ServiceBadges";
 
@@ -37,6 +38,7 @@ const typeLabels: Record<string, string> = {
   apartment: "Apartment",
   building: "Building",
   commercial: "Commercial",
+  unit: "Unit",
 };
 
 export default function PropertiesPage() {
@@ -44,6 +46,7 @@ export default function PropertiesPage() {
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [servicesTargetId, setServicesTargetId] = useState<string | null>(null);
+  const [addUnitTargetId, setAddUnitTargetId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("");
   const [filterClient, setFilterClient] = useState<string>("");
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -60,12 +63,13 @@ export default function PropertiesPage() {
   const { data: properties = [], isLoading } = usePropertiesQuery({
     property_type: filterType && filterType !== "all" ? filterType : undefined,
     client_id: filterClient && filterClient !== "all" ? filterClient : undefined,
-    parents_only: true,
+    parents_only: filterType === "unit" ? false : true,
   });
 
+  const showParent = filterType === "unit";
   const columns = useMemo(
-    () => getPropertyColumns({ onEdit: setEditTargetId, onDelete: setDeleteTargetId, onManageServices: setServicesTargetId }),
-    []
+    () => getPropertyColumns({ onEdit: setEditTargetId, onDelete: setDeleteTargetId, onManageServices: setServicesTargetId, onAddUnit: setAddUnitTargetId, showParent }),
+    [showParent]
   );
 
   const table = useReactTable({
@@ -103,6 +107,7 @@ export default function PropertiesPage() {
             <SelectItem value="apartment">Apartment</SelectItem>
             <SelectItem value="building">Building</SelectItem>
             <SelectItem value="commercial">Commercial</SelectItem>
+            <SelectItem value="unit">Unit</SelectItem>
           </SelectContent>
         </Select>
         <SearchableSelect
@@ -143,6 +148,7 @@ export default function PropertiesPage() {
           onEdit={setEditTargetId}
           onDelete={setDeleteTargetId}
           onManageServices={setServicesTargetId}
+          onAddUnit={setAddUnitTargetId}
         />
       ) : (
         <DataTable
@@ -202,6 +208,7 @@ export default function PropertiesPage() {
       <EditPropertyDialog propertyId={editTargetId} onClose={() => setEditTargetId(null)} />
       <DeletePropertyDialog propertyId={deleteTargetId} onClose={() => setDeleteTargetId(null)} />
       <ManageServicesDialog propertyId={servicesTargetId} onClose={() => setServicesTargetId(null)} />
+      <AddUnitDialog parentPropertyId={addUnitTargetId} onClose={() => setAddUnitTargetId(null)} />
     </div>
   );
 }

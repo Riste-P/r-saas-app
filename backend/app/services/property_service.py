@@ -101,6 +101,10 @@ async def create_property(
         if not client_result.scalar_one_or_none():
             raise NotFoundError("CLIENT_NOT_FOUND", "Client not found")
 
+    # Only units can be children
+    if body.parent_property_id is not None and body.property_type != PropertyType.unit:
+        raise AppError("INVALID_CHILD_TYPE", "Only units can be added as children of other properties")
+
     # Validate parent property if provided
     if body.parent_property_id is not None:
         parent_query = select(Property).where(
@@ -115,13 +119,13 @@ async def create_property(
                 "PARENT_NOT_FOUND",
                 "Parent property not found",
             )
-        if parent.property_type == PropertyType.apartment:
-            raise AppError("INVALID_PARENT", "An apartment cannot be part of another apartment")
+        if parent.property_type == PropertyType.unit:
+            raise AppError("INVALID_PARENT", "A unit cannot be a parent of other properties")
 
-    if body.number_of_apartments and body.property_type != PropertyType.building:
+    if body.number_of_units and body.property_type != PropertyType.building:
         raise AppError(
-            "INVALID_APARTMENT_COUNT",
-            "Number of apartments can only be specified for building properties",
+            "INVALID_UNIT_COUNT",
+            "Number of units can only be specified for building properties",
         )
 
     prop = Property(
@@ -137,19 +141,19 @@ async def create_property(
     db.add(prop)
     await db.flush()
 
-    if body.number_of_apartments and body.property_type == PropertyType.building:
-        for i in range(1, body.number_of_apartments + 1):
-            apartment = Property(
+    if body.number_of_units and body.property_type == PropertyType.building:
+        for i in range(1, body.number_of_units + 1):
+            unit = Property(
                 client_id=body.client_id,
                 parent_property_id=prop.id,
-                property_type=PropertyType.apartment,
-                name=f"Apartment {i}",
+                property_type=PropertyType.unit,
+                name=f"Unit {i}",
                 address=body.address,
                 city=body.city,
                 notes=None,
                 tenant_id=current_user.tenant_id,
             )
-            db.add(apartment)
+            db.add(unit)
 
     await db.commit()
 
@@ -183,6 +187,10 @@ async def update_property(
         if body.parent_property_id is None:
             prop.parent_property_id = None
         elif body.parent_property_id != prop.parent_property_id:
+            # Only units can be children
+            effective_type = body.property_type if body.property_type is not None else prop.property_type
+            if effective_type != PropertyType.unit:
+                raise AppError("INVALID_CHILD_TYPE", "Only units can be added as children of other properties")
             parent_query = select(Property).where(
                 Property.id == body.parent_property_id,
                 Property.deleted_at.is_(None),
@@ -195,8 +203,8 @@ async def update_property(
                     "PARENT_NOT_FOUND",
                     "Parent property not found",
                 )
-            if parent.property_type == PropertyType.apartment:
-                raise AppError("INVALID_PARENT", "An apartment cannot be part of another apartment")
+            if parent.property_type == PropertyType.unit:
+                raise AppError("INVALID_PARENT", "A unit cannot be a parent of other properties")
             prop.parent_property_id = body.parent_property_id
 
     if body.property_type is not None:
@@ -229,7 +237,7 @@ async def delete_property(
     prop.updated_at = now
     prop.is_active = False
 
-    # Also soft-delete child properties (apartments in a building)
+    # Also soft-delete child properties (units in a building)
     for child in prop.child_properties:
         if child.deleted_at is None:
             child.deleted_at = now

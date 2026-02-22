@@ -1,4 +1,4 @@
-export type PropertyType = "house" | "apartment" | "building" | "commercial";
+export type PropertyType = "house" | "apartment" | "building" | "commercial" | "unit";
 
 export interface ServiceBadge {
   service_type_name: string;
@@ -42,7 +42,7 @@ export interface PropertyCreatePayload {
   address?: string;
   city?: string;
   notes?: string;
-  number_of_apartments?: number;
+  number_of_units?: number;
 }
 
 export interface PropertyUpdatePayload {

@@ -82,7 +82,7 @@ export function EditPropertyDialog({ propertyId, onClose }: EditPropertyDialogPr
     updateMutation.mutate({
       id: propertyId,
       client_id: values.client_id && values.client_id !== "none" ? values.client_id : null,
-      parent_property_id: values.property_type === "apartment" && values.parent_property_id && values.parent_property_id !== "none" ? values.parent_property_id : null,
+      parent_property_id: values.property_type === "unit" && values.parent_property_id && values.parent_property_id !== "none" ? values.parent_property_id : null,
       property_type: values.property_type,
       name: values.name,
       address: values.address || undefined,
@@ -166,6 +166,7 @@ export function EditPropertyDialog({ propertyId, onClose }: EditPropertyDialogPr
                         <SelectItem value="apartment">Apartment</SelectItem>
                         <SelectItem value="building">Building</SelectItem>
                         <SelectItem value="commercial">Commercial</SelectItem>
+                        <SelectItem value="unit">Unit</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -193,7 +194,7 @@ export function EditPropertyDialog({ propertyId, onClose }: EditPropertyDialogPr
                 )}
               />
             </div>
-            {propertyType === "apartment" && (
+            {propertyType === "unit" && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -206,7 +207,7 @@ export function EditPropertyDialog({ propertyId, onClose }: EditPropertyDialogPr
                           options={[
                             { value: "none", label: "None" },
                             ...allProperties
-                              .filter((p) => p.is_active && p.id !== propertyId && p.property_type !== "apartment")
+                              .filter((p) => p.is_active && p.id !== propertyId && p.property_type !== "unit")
                               .map((p) => ({ value: p.id, label: p.name })),
                           ]}
                           value={field.value ?? "none"}
@@ -221,7 +222,7 @@ export function EditPropertyDialog({ propertyId, onClose }: EditPropertyDialogPr
                 </div>
                 <p className="text-muted-foreground flex items-start gap-1.5 text-sm">
                   <Info className="mt-0.5 size-4 shrink-0" />
-                  Link this apartment to a building or property it belongs to.
+                  Link this unit to a building or property it belongs to.
                 </p>
               </>
             )}

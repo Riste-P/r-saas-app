@@ -108,19 +108,19 @@ export type EditClientFormValues = z.infer<typeof editClientSchema>;
 export const createPropertySchema = z.object({
   client_id: z.string().optional().or(z.literal("")),
   parent_property_id: z.string().optional().or(z.literal("")),
-  property_type: z.enum(["house", "apartment", "building", "commercial"]),
+  property_type: z.enum(["house", "apartment", "building", "commercial", "unit"]),
   name: z.string().min(1, "Name is required").max(255),
   address: z.string().max(500).optional().or(z.literal("")),
   city: z.string().max(100).optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
-  number_of_apartments: z.number().int().min(1, "Minimum 1 apartment").max(100, "Maximum 100 apartments").optional(),
+  number_of_units: z.number().int().min(1, "Minimum 1 unit").max(100, "Maximum 100 units").optional(),
 });
 export type CreatePropertyFormValues = z.infer<typeof createPropertySchema>;
 
 export const editPropertySchema = z.object({
   client_id: z.string().optional().or(z.literal("")),
   parent_property_id: z.string().optional().or(z.literal("")),
-  property_type: z.enum(["house", "apartment", "building", "commercial"]),
+  property_type: z.enum(["house", "apartment", "building", "commercial", "unit"]),
   name: z.string().min(1, "Name is required").max(255),
   address: z.string().max(500).optional().or(z.literal("")),
   city: z.string().max(100).optional().or(z.literal("")),

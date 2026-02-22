@@ -262,7 +262,7 @@ async def test_remove_child_override_hard_deletes(auth_client: AsyncClient):
         auth_client, client["id"], property_type="building", name="Override Building", address="1 St"
     )
     apt = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="Override Apt",
+        auth_client, client["id"], property_type="unit", name="Override Apt",
         address="1 St, 1A", parent_property_id=building["id"],
     )
     st = await _create_service_type(auth_client, "Override Svc")
@@ -323,7 +323,7 @@ async def test_effective_services_inherited(auth_client: AsyncClient):
         auth_client, client["id"], property_type="building", name="Inherit Building", address="2 St"
     )
     apt = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="Inherit Apt",
+        auth_client, client["id"], property_type="unit", name="Inherit Apt",
         address="2 St, 1A", parent_property_id=building["id"],
     )
     st = await _create_service_type(auth_client, "Inherit Svc", base_price=60.0)
@@ -348,7 +348,7 @@ async def test_effective_services_child_override_price(auth_client: AsyncClient)
         auth_client, client["id"], property_type="building", name="OverPrice Building", address="3 St"
     )
     apt = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="OverPrice Apt",
+        auth_client, client["id"], property_type="unit", name="OverPrice Apt",
         address="3 St, 1A", parent_property_id=building["id"],
     )
     st = await _create_service_type(auth_client, "OverPrice Svc", base_price=100.0)
@@ -373,7 +373,7 @@ async def test_effective_services_child_opt_out(auth_client: AsyncClient):
         auth_client, client["id"], property_type="building", name="OptOut Building", address="4 St"
     )
     apt = await _create_property(
-        auth_client, client["id"], property_type="apartment", name="OptOut Apt",
+        auth_client, client["id"], property_type="unit", name="OptOut Apt",
         address="4 St, 1A", parent_property_id=building["id"],
     )
     st = await _create_service_type(auth_client, "OptOut Svc")

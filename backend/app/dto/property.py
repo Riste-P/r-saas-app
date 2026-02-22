@@ -87,7 +87,7 @@ class CreatePropertyRequest(BaseModel):
     address: str | None = None
     city: str | None = None
     notes: str | None = None
-    number_of_apartments: int | None = Field(None, ge=1, le=100)
+    number_of_units: int | None = Field(None, ge=1, le=100)
 
 
 class UpdatePropertyRequest(BaseModel):

@@ -5,6 +5,7 @@ import {
   Building,
   Building2,
   Store,
+  DoorOpen,
   MapPin,
   User,
   ChevronRight,
@@ -37,6 +38,7 @@ const typeIcons: Record<PropertyType, LucideIcon> = {
   apartment: Building,
   building: Building2,
   commercial: Store,
+  unit: DoorOpen,
 };
 
 const typeLabels: Record<string, string> = {
@@ -44,6 +46,7 @@ const typeLabels: Record<string, string> = {
   apartment: "Apartment",
   building: "Building",
   commercial: "Commercial",
+  unit: "Unit",
 };
 
 interface PropertyCardViewProps {
@@ -51,9 +54,10 @@ interface PropertyCardViewProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onManageServices: (id: string) => void;
+  onAddUnit: (id: string) => void;
 }
 
-export function PropertyCardView({ properties, onEdit, onDelete, onManageServices }: PropertyCardViewProps) {
+export function PropertyCardView({ properties, onEdit, onDelete, onManageServices, onAddUnit }: PropertyCardViewProps) {
   if (properties.length === 0) {
     return (
       <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
@@ -71,6 +75,7 @@ export function PropertyCardView({ properties, onEdit, onDelete, onManageService
           onEdit={onEdit}
           onDelete={onDelete}
           onManageServices={onManageServices}
+          onAddUnit={onAddUnit}
         />
       ))}
     </div>
@@ -82,9 +87,10 @@ interface PropertyCardProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onManageServices: (id: string) => void;
+  onAddUnit: (id: string) => void;
 }
 
-function PropertyCard({ property, onEdit, onDelete, onManageServices }: PropertyCardProps) {
+function PropertyCard({ property, onEdit, onDelete, onManageServices, onAddUnit }: PropertyCardProps) {
   const [childrenOpen, setChildrenOpen] = useState(false);
   const TypeIcon = typeIcons[property.property_type];
   const hasChildren = property.child_properties.length > 0;
@@ -104,6 +110,7 @@ function PropertyCard({ property, onEdit, onDelete, onManageServices }: Property
             onEdit={() => onEdit(property.id)}
             onDelete={() => onDelete(property.id)}
             onManageServices={() => onManageServices(property.id)}
+            onAddUnit={property.property_type !== "unit" ? () => onAddUnit(property.id) : undefined}
           />
         </CardAction>
       </CardHeader>
@@ -137,7 +144,7 @@ function PropertyCard({ property, onEdit, onDelete, onManageServices }: Property
                 <ChevronRight
                   className={cn("size-4 transition-transform", childrenOpen && "rotate-90")}
                 />
-                {property.child_properties.length} apartment
+                {property.child_properties.length} unit
                 {property.child_properties.length !== 1 ? "s" : ""}
               </Button>
             </Collapsible.Trigger>
@@ -189,7 +196,7 @@ function ChildRow({ child, onEdit, onDelete, onManageServices }: ChildRowProps) 
   );
 }
 
-function ActionsMenu({ onEdit, onDelete, onManageServices }: { onEdit: () => void; onDelete: () => void; onManageServices: () => void }) {
+function ActionsMenu({ onEdit, onDelete, onManageServices, onAddUnit }: { onEdit: () => void; onDelete: () => void; onManageServices: () => void; onAddUnit?: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -200,6 +207,9 @@ function ActionsMenu({ onEdit, onDelete, onManageServices }: { onEdit: () => voi
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
         <DropdownMenuItem onClick={onManageServices}>Manage Services</DropdownMenuItem>
+        {onAddUnit && (
+          <DropdownMenuItem onClick={onAddUnit}>Add Unit</DropdownMenuItem>
+        )}
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
           onClick={onDelete}

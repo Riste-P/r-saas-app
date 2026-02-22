@@ -29,7 +29,7 @@ docker-compose --profile test up test --build   # Run backend tests
 - Soft delete via `deleted_at` timestamp — always filter with `.where(Model.deleted_at.is_(None))`
 - Multi-tenant isolation via `tenant_filter()` from `database/utils/common.py`
 - Custom exceptions (`NotFoundError`, `ConflictError`, `ForbiddenError`) from `core/exceptions.py` — raise from services, never catch in endpoints
-- Migration filenames must be prefixed with `YYYYMMDDhhmm_` (e.g., `202602130001_add_clients_and_properties.py`)
+- Migration filenames must be prefixed with `YYYYMMDDhhmm_revision_id_name` (e.g., `202602130001_416468d98772_add_clients_and_properties.py`)
 - Run tests when completing a feature or when asked — not after every small change
 - Do not add tests unless explicitly asked
 
